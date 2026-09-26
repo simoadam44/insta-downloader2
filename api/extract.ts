@@ -28,10 +28,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const canonical = `https://www.instagram.com/p/${shortcode}/`;
 
+  // Vercel Hobby kills functions after ~10s, so the three free providers race
+  // IN PARALLEL with short timeouts instead of sequential long ones.
+  const FAST_MS = 6000;
+  const [kkSettled, oeSettled, emSettled] = await Promise.allSettled([
+    fetchViaKkMirror(shortcode, FAST_MS),
+    fetchOEmbed(canonical, FAST_MS),
+    fetchEmbedHtml(shortcode, FAST_MS),
+  ]);
+  const kkResult = kkSettled.status === 'fulfilled' ? kkSettled.value : null;
+  const oembedEarly: any = oeSettled.status === 'fulfilled' ? oeSettled.value : null;
+  const embedEarly: string | null =
+    emSettled.status === 'fulfilled' ? emSettled.value : null;
+
   // Author/title metadata (official free oEmbed — also proves the post is public).
-  const oembedEarly = await fetchOEmbed(canonical);
-  const oembedAuthor: string =
-    (oembedEarly as any)?.author_name || 'instagram_user';
+  const oembedAuthor: string = oembedEarly?.author_name || 'instagram_user';
   const oembedTitle: string =
     (oembedEarly as any)?.title || `Instagram post by ${oembedAuthor}`;
   const oembedThumb: string = (oembedEarly as any)?.thumbnail_url || '';
@@ -40,8 +51,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `/api/proxy-media?url=${encodeURIComponent(mediaUrl)}&filename=${encodeURIComponent(filename)}`;
 
   // 0) FREE automatic provider — kkscript mirrors (no key, no login).
-  try {
-    const kk = await fetchViaKkMirror(shortcode);
+  // Result already resolved in the parallel race above.
+  {
+    const kk = kkResult;
     if (kk) {
       const isVideo = kk.isVideo;
       const ext = isVideo ? 'mp4' : 'jpg';
@@ -64,7 +76,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }],
       });
     }
-  } catch {}
+  }
 
   // 1) RapidAPI (optional paid/key provider — only if configured)
   try {
@@ -116,9 +128,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch {}
 
-  // 3) Direct embed scrape (works locally / with IG_SESSIONID, usually blocked on Vercel IPs)
-  try {
-    const html = await fetchEmbedHtml(shortcode);
+  // 3) Direct embed scrape — result already resolved in the parallel race
+  // (works locally / with IG_SESSIONID, usually blocked on Vercel IPs).
+  {
+    const html = embedEarly;
     if (html) {
       const { video, image, username } = parseEmbedHtml(html);
       const user = username || 'instagram_user';
@@ -147,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
     }
-  } catch {}
+  }
 
   // 4) oEmbed — tells public vs private/deleted apart (reuses the early lookup)
   const oembed = oembedEarly;
@@ -168,7 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: shortcode, mediaType: 'photo', originalUrl: rawUrl,
       author: { username: author, fullName: (oembed as any).title || author, avatar: '', isVerified: false },
       caption: (oembed as any).title || `Instagram post by ${author}`,
-      note: 'HD video needs RAPIDAPI_KEY / COBALT_API_URL configured — showing full-quality cover image for now.',
+        note: 'Showing full-quality cover image — the video stream was busy, please retry for the MP4.',
       items: [{
         id: `item_${shortcode}_1`, type: 'photo', url: px, downloadUrl: px,
         thumbnail: thumb, quality: 'Original quality', format: 'jpg', availableQualities: [],

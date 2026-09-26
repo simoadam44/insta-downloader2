@@ -38,47 +38,61 @@ const BOT_UA = 'TelegramBot (like TwitterBot)';
 const KK_HOSTS = ['kkinstagram.com', 'kkclip.com'];
 
 export async function fetchViaKkMirror(
-  shortcode: string
+  shortcode: string,
+  timeoutMs = 12000
 ): Promise<{ url: string; isVideo: boolean } | null> {
-  const paths = [`/reel/${shortcode}/`, `/p/${shortcode}/`];
+  // All host/path combos race in parallel — first CDN hit wins.
+  // (Sequential retries would blow Vercel Hobby's ~10s function limit.)
+  const targets: string[] = [];
   for (const host of KK_HOSTS) {
-    for (const p of paths) {
-      try {
-        const r = await fetch(`https://${host}${p}`, {
-          method: 'GET',
-          headers: { 'User-Agent': BOT_UA, Accept: '*/*' },
-          redirect: 'manual',
-          signal: AbortSignal.timeout(12000),
-        });
-        if (r.status !== 301 && r.status !== 302) continue;
-        const loc = r.headers.get('location') || '';
-        if (!loc) continue;
-        const low = loc.toLowerCase();
-        const isCdn = low.includes('cdninstagram.com') || low.includes('fbcdn.net');
-        if (!isCdn) continue;
-        return { url: loc, isVideo: /\.mp4/i.test(loc.split('?')[0]) };
-      } catch {}
-    }
+    for (const p of [`/reel/${shortcode}/`, `/p/${shortcode}/`]) targets.push(`https://${host}${p}`);
+  }
+  const attempt = async (url: string) => {
+    const r = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': BOT_UA, Accept: '*/*' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (r.status !== 301 && r.status !== 302) return null;
+    const loc = r.headers.get('location') || '';
+    if (!loc) return null;
+    const low = loc.toLowerCase();
+    if (!low.includes('cdninstagram.com') && !low.includes('fbcdn.net')) return null;
+    return { url: loc, isVideo: /\.mp4/i.test(loc.split('?')[0]) };
+  };
+  const results = await Promise.allSettled(targets.map((t) =>
+    attempt(t).catch(() => null)
+  ));
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) return r.value;
   }
   return null;
 }
 
 /** Step 0 — oEmbed: public, no login, validates that the post exists & is public. */
-export async function fetchOEmbed(postUrl: string) {
-  for (const base of ['https://www.instagram.com/api/v1/oembed/?url=', 'https://i.instagram.com/api/v1/oembed?url=']) {
-    try {
-      const r = await fetch(base + encodeURIComponent(postUrl), {
-        headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
-        signal: AbortSignal.timeout(8000),
-      });
-      if (r.ok) return (await r.json()) as any;
-    } catch {}
+export async function fetchOEmbed(postUrl: string, timeoutMs = 8000) {
+  const attempt = async (base: string) => {
+    const r = await fetch(base + encodeURIComponent(postUrl), {
+      headers: { 'User-Agent': DESKTOP_UA, Accept: 'application/json' },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) return null;
+    return (await r.json()) as any;
+  };
+  const bases = [
+    'https://www.instagram.com/api/v1/oembed/?url=',
+    'https://i.instagram.com/api/v1/oembed?url=',
+  ];
+  const results = await Promise.allSettled(bases.map((b) => attempt(b).catch(() => null)));
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) return r.value;
   }
   return null;
 }
 
 /** Step 1 — authenticated embed fetch (works only when IG_SESSIONID is set). */
-export async function fetchEmbedHtml(shortcode: string): Promise<string | null> {
+export async function fetchEmbedHtml(shortcode: string, timeoutMs = 10000): Promise<string | null> {
   const sessionId = process.env.IG_SESSIONID || '';
   const dsUser = process.env.IG_DS_USER_ID || '';
   const csrftoken = process.env.IG_CSRFTOKEN || '';
@@ -95,18 +109,22 @@ export async function fetchEmbedHtml(shortcode: string): Promise<string | null> 
     headers['Cookie'] = cookie;
     headers['X-CSRFToken'] = csrftoken || sessionId.slice(0, 32);
   }
-  for (const u of [
+  const attempt = async (u: string): Promise<string | null> => {
+    const r = await fetch(u, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    if (!r.ok) return null;
+    const html = await r.text();
+    if (html.includes('video_url') || html.includes('display_url') || html.includes('og:video') || html.includes('og:image')) {
+      return html;
+    }
+    return null;
+  };
+  const urls = [
     `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
     `https://www.instagram.com/reel/${shortcode}/embed/captioned/`,
-  ]) {
-    try {
-      const r = await fetch(u, { headers, signal: AbortSignal.timeout(10000) });
-      if (!r.ok) continue;
-      const html = await r.text();
-      if (html.includes('video_url') || html.includes('display_url') || html.includes('og:video') || html.includes('og:image')) {
-        return html;
-      }
-    } catch {}
+  ];
+  const results = await Promise.allSettled(urls.map((u) => attempt(u).catch(() => null)));
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) return r.value;
   }
   return null;
 }
