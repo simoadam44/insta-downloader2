@@ -3,8 +3,20 @@ import { KeywordToolPage } from '../src/types';
 
 let adminClient: SupabaseClient | null | undefined;
 
+export function getSupabaseUrl(): string {
+  // Manual setup uses SUPABASE_URL; the native Supabase↔Vercel integration
+  // syncs it as NEXT_PUBLIC_SUPABASE_URL. Accept both.
+  return (
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  );
+}
+
+export function getSupabaseServiceKey(): string {
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+}
+
 export function isSupabaseConfigured(): boolean {
-  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return !!(getSupabaseUrl() && getSupabaseServiceKey());
 }
 
 export function getSupabaseAdmin(): SupabaseClient | null {
@@ -13,11 +25,9 @@ export function getSupabaseAdmin(): SupabaseClient | null {
     adminClient = null;
     return null;
   }
-  adminClient = createClient(
-    process.env.SUPABASE_URL as string,
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string,
-    { auth: { persistSession: false, autoRefreshToken: false } }
-  );
+  adminClient = createClient(getSupabaseUrl(), getSupabaseServiceKey(), {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
   return adminClient;
 }
 

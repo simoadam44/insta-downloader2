@@ -82,8 +82,14 @@ interface KeywordToolPage {
 
 let adminClient: SupabaseClient | null | undefined;
 
+function getSupabaseUrl(): string {
+  // Manual setup uses SUPABASE_URL; the native Supabase↔Vercel integration
+  // syncs it as NEXT_PUBLIC_SUPABASE_URL. Accept both.
+  return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+}
+
 function isSupabaseConfigured(): boolean {
-  return !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return !!(getSupabaseUrl() && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 function getSupabaseAdmin(): SupabaseClient | null {
@@ -93,7 +99,7 @@ function getSupabaseAdmin(): SupabaseClient | null {
     return null;
   }
   adminClient = createClient(
-    process.env.SUPABASE_URL as string,
+    getSupabaseUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY as string,
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
