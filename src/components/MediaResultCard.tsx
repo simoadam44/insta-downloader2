@@ -45,10 +45,13 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
   const [mediaError, setMediaError] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
 
-  // Fresh media (new extract or new slide) clears the error state.
+  // Fresh media (new extract object or new slide) clears the error state.
+  // NOTE: compare the whole object, not media.id — a refresh re-extracts the
+  // SAME shortcode, so media.id is unchanged and an id-based effect would
+  // leave a stale overlay on screen ("refresh does nothing" bug).
   useEffect(() => {
     setMediaError(false);
-  }, [media.id, activeSlideIndex]);
+  }, [media, activeSlideIndex]);
   useEffect(() => {
     setAvatarBroken(false);
   }, [media.id]);

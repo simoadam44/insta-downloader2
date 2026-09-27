@@ -107,6 +107,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'public, max-age=86400');
   const len = upstream.headers.get('content-length');
   if (len) res.setHeader('Content-Length', len);
+  // CRITICAL for <video>: a 206 WITHOUT Content-Range is rejected by Chrome
+  // (MEDIA_ERR_SRC_NOT_SUPPORTED -> black player). Always forward it.
+  const range = upstream.headers.get('content-range');
+  if (range) res.setHeader('Content-Range', range);
   res.status(upstream.status);
   if (!upstream.body) return res.end();
   const reader = upstream.body.getReader();
