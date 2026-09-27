@@ -12,7 +12,9 @@ export function getSupabaseUrl(): string {
 }
 
 export function getSupabaseServiceKey(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  // Manual setup uses SUPABASE_SERVICE_ROLE_KEY; the native Supabase↔Vercel
+  // integration syncs the new-format key as SUPABASE_SECRET_KEY. Accept both.
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
 }
 
 export function isSupabaseConfigured(): boolean {

@@ -88,8 +88,14 @@ function getSupabaseUrl(): string {
   return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 }
 
+function getSupabaseServiceKey(): string {
+  // Manual setup uses SUPABASE_SERVICE_ROLE_KEY; the native Supabase↔Vercel
+  // integration syncs the new-format key as SUPABASE_SECRET_KEY. Accept both.
+  return process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+}
+
 function isSupabaseConfigured(): boolean {
-  return !!(getSupabaseUrl() && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return !!(getSupabaseUrl() && getSupabaseServiceKey());
 }
 
 function getSupabaseAdmin(): SupabaseClient | null {
@@ -100,7 +106,7 @@ function getSupabaseAdmin(): SupabaseClient | null {
   }
   adminClient = createClient(
     getSupabaseUrl(),
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+    getSupabaseServiceKey(),
     { auth: { persistSession: false, autoRefreshToken: false } }
   );
   return adminClient;
