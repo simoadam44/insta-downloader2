@@ -87,6 +87,11 @@ async function fetchViaKkMirror(
     return { url: loc, isVideo: /\.mp4/i.test(loc.split('?')[0]) };
   };
   const results = await Promise.allSettled(targets.map((t) => attempt(t).catch(() => null)));
+  // Prefer an MP4 across ALL host/path combos: one combo may yield video
+  // while another yields only the cover JPG for the same reel.
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value && r.value.isVideo) return r.value;
+  }
   for (const r of results) {
     if (r.status === 'fulfilled' && r.value) return r.value;
   }
@@ -249,27 +254,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `/api/proxy-media?url=${encodeURIComponent(mediaUrl)}&filename=${encodeURIComponent(filename)}`;
 
   // 0) FREE automatic provider — kkscript mirrors (no key, no login).
+  // IMPORTANT: a mirror sometimes returns only the cover JPG for a reel.
+  // An MP4 wins instantly; a JPG is kept as LAST-RESORT fallback while the
+  // rest of the chain (RapidAPI -> Cobalt -> embed -> oEmbed) hunts for video.
+  const kkImageFallback = kkResult && !kkResult.isVideo ? kkResult : null;
   {
-    const kk = kkResult;
+    const kk = kkResult && kkResult.isVideo ? kkResult : null;
     if (kk) {
-      const isVideo = kk.isVideo;
-      const ext = isVideo ? 'mp4' : 'jpg';
-      const file = `sssinstagram_${shortcode}_${oembedAuthor}.${ext}`;
+      const file = `sssinstagram_${shortcode}_${oembedAuthor}.mp4`;
       const px = proxied(kk.url, file);
       return res.status(200).json({
         id: shortcode,
-        mediaType: isVideo ? (rawUrl.includes('/reel') ? 'reels' : 'video') : 'photo',
+        mediaType: rawUrl.includes('/reel') ? 'reels' : 'video',
         originalUrl: rawUrl,
         author: { username: oembedAuthor, fullName: oembedTitle, avatar: '', isVerified: false },
         caption: oembedTitle,
         provider: 'free-auto',
         items: [{
           id: `item_${shortcode}_1`,
-          type: isVideo ? 'video' : 'photo',
+          type: 'video',
           url: px, downloadUrl: px,
           thumbnail: oembedThumb || kk.url,
-          quality: isVideo ? '1080p Full HD' : 'Original quality',
-          format: ext, availableQualities: [],
+          quality: '1080p Full HD',
+          format: 'mp4', availableQualities: [],
         }],
       });
     }
@@ -360,22 +367,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 4) oEmbed fallback (reuses the early lookup)
   const oembed = oembedEarly;
-  if (!oembed) {
+  if (!oembed && !kkImageFallback) {
     return res.status(404).json({
       error:
         'Media not found. The post is private, deleted, or all free providers are busy — please try again in a minute.',
       shortcode,
     });
   }
-  const thumb: string = (oembed as any).thumbnail_url || '';
-  const author: string = (oembed as any).author_name || 'instagram_user';
+  const thumb: string = (oembed as any)?.thumbnail_url || kkImageFallback?.url || '';
+  const author: string = (oembed as any)?.author_name || oembedAuthor;
   if (thumb) {
     const file = `sssinstagram_${shortcode}_${author}.jpg`;
     const px = `/api/proxy-media?url=${encodeURIComponent(thumb)}&filename=${encodeURIComponent(file)}`;
     return res.status(200).json({
       id: shortcode, mediaType: 'photo', originalUrl: rawUrl,
-      author: { username: author, fullName: (oembed as any).title || author, avatar: '', isVerified: false },
-      caption: (oembed as any).title || `Instagram post by ${author}`,
+        author: { username: author, fullName: (oembed as any)?.title || author, avatar: '', isVerified: false },
+        caption: (oembed as any)?.title || `Instagram post by ${author}`,
       note: 'Showing full-quality cover image — the video stream was busy, please retry for the MP4.',
       items: [{
         id: `item_${shortcode}_1`, type: 'photo', url: px, downloadUrl: px,
