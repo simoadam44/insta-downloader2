@@ -1,5 +1,36 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { checkRateLimit, setSecurityHeaders } from './_security';
+
+// SELF-CONTAINED Vercel function — zero local-file imports.
+// (Vercel fails to bundle relative local imports in this project.)
+
+function setSecurityHeaders(res: VercelResponse): void {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+}
+
+const buckets = new Map<string, { count: number; reset: number }>();
+
+function checkRateLimit(req: VercelRequest, scope: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  if (buckets.size > 5000) {
+    for (const [k, v] of buckets) if (now > v.reset) buckets.delete(k);
+  }
+  const xff = req.headers['x-forwarded-for'];
+  const first = Array.isArray(xff) ? xff[0] : (xff || '').split(',')[0];
+  const ip = ((first || (req.headers['x-real-ip'] as string) || 'unknown').trim() || 'unknown').substring(0, 45);
+  const key = `${scope}:${ip}`;
+  const entry = buckets.get(key);
+  if (!entry || now > entry.reset) {
+    buckets.set(key, { count: 1, reset: now + windowMs });
+    return false;
+  }
+  if (entry.count >= max) return true;
+  entry.count++;
+  return false;
+}
 
 function isAllowed(urlStr: string): boolean {
   try {

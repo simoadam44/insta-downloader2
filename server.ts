@@ -7,7 +7,7 @@ import {
   isSupabaseConfigured,
   listKeywordPages,
   upsertKeywordPage,
-} from './api/_supabase';
+} from './lib/supabaseAdmin';
 
 const app = express();
 // Hide framework fingerprint; honor the single hosting proxy (Render/Vercel)
