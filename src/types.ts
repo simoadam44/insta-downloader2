@@ -54,6 +54,8 @@ export interface ExtractedMedia {
   comments?: string;
   views?: string;
   duration?: string;
+  // Optional backend notice (e.g. "Instagram exposed no video stream…").
+  note?: string;
   items: ExtractedMediaItem[];
   audioTrack?: {
     title: string;

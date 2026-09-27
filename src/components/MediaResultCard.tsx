@@ -175,6 +175,13 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
 
         {/* Media Preview & Details Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6">
+          {/* Backend notice (e.g. no video stream exposed for this post) */}
+          {media.note && (
+            <div className="md:col-span-12 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 leading-relaxed">
+              <span className="mt-0.5 shrink-0">ℹ️</span>
+              <span>{media.note}</span>
+            </div>
+          )}
           {/* Left Column: Media Player / Preview */}
           <div className="md:col-span-5 flex flex-col items-center">
             <div className="relative w-full overflow-hidden rounded-2xl bg-slate-900 shadow-md aspect-4/5 sm:aspect-square flex items-center justify-center">

@@ -379,11 +379,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (thumb) {
     const file = `sssinstagram_${shortcode}_${author}.jpg`;
     const px = `/api/proxy-media?url=${encodeURIComponent(thumb)}&filename=${encodeURIComponent(file)}`;
+    // Honest UX: the link smells like video (/p/ or /reel/) but Instagram
+    // exposed no playable stream (verified: even its own embed page carries
+    // only display_url). Say so instead of silently downgrading.
+    const wantsVideo = /\/reel|\/reels|\/tv|\/p\//i.test(rawUrl);
     return res.status(200).json({
       id: shortcode, mediaType: 'photo', originalUrl: rawUrl,
-        author: { username: author, fullName: (oembed as any)?.title || author, avatar: '', isVerified: false },
-        caption: (oembed as any)?.title || `Instagram post by ${author}`,
-      note: 'Showing full-quality cover image — the video stream was busy, please retry for the MP4.',
+      author: { username: author, fullName: (oembed as any)?.title || author, avatar: '', isVerified: false },
+      caption: (oembed as any)?.title || `Instagram post by ${author}`,
+      note: wantsVideo
+        ? 'Instagram did not expose a video stream for this post (cover image shown). Try another post, or retry later.'
+        : 'Showing full-quality cover image — the video stream was busy, please retry for the MP4.',
       items: [{
         id: `item_${shortcode}_1`, type: 'photo', url: px, downloadUrl: px,
         thumbnail: thumb, quality: 'Original quality', format: 'jpg', availableQualities: [],
