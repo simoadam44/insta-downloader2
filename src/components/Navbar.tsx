@@ -38,7 +38,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
 
-  const siteName = branding?.siteName || 'SSSInstagram';
+  const siteName = branding?.siteName || 'IGSaveGo';
   const siteTagline = branding?.siteTagline || 'Fast & HD Media Saver';
   const customLogoUrl = branding?.customLogoUrl;
   const logoType = branding?.logoType || 'default';

@@ -32,12 +32,12 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenSitemap,
   onOpenAdmin,
 }) => {
-  const siteName = branding?.siteName || 'SSSInstagram';
+  const siteName = branding?.siteName || 'IGSaveGo';
   const siteTagline = branding?.siteTagline || 'Fast & HD Media Saver';
   const customLogoUrl = branding?.customLogoUrl;
   const logoType = branding?.logoType || 'default';
   const copyrightText = branding?.copyrightText || `© ${new Date().getFullYear()} ${siteName}. All rights reserved. Ultra-Fast Free Instagram Downloader.`;
-  const contactEmail = branding?.contactEmail || 'support@sssinstagram.app';
+  const contactEmail = branding?.contactEmail || 'support@igsavego.com';
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
 

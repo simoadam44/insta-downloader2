@@ -102,7 +102,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
     setDownloadingQualityId(qualityOption.id);
     const extension = qualityOption.format;
     const qualityTag = qualityOption.quality.replace(/[^a-zA-Z0-9]/g, '');
-    const filename = `sssinstagram_${media.author.username}_${targetItem.id}_${qualityTag}.${extension}`;
+    const filename = `igsavego_${media.author.username}_${targetItem.id}_${qualityTag}.${extension}`;
     await triggerBrowserDownload(qualityOption.downloadUrl, filename);
     setDownloadingQualityId(null);
   };
@@ -111,7 +111,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
     const audioUrl = media.audioTrack?.audioUrl || (currentItem.type === 'video' ? currentItem.downloadUrl : '');
     if (!audioUrl) return;
     setDownloadingQualityId('audio');
-    const filename = `sssinstagram_audio_${media.author.username}_320kbps.mp3`;
+    const filename = `igsavego_audio_${media.author.username}_320kbps.mp3`;
     await triggerBrowserDownload(audioUrl, filename);
     setDownloadingQualityId(null);
   };

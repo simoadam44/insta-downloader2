@@ -261,7 +261,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   {
     const kk = kkResult && kkResult.isVideo ? kkResult : null;
     if (kk) {
-      const file = `sssinstagram_${shortcode}_${oembedAuthor}.mp4`;
+      const file = `igsavego_${shortcode}_${oembedAuthor}.mp4`;
       const px = proxied(kk.url, file);
       return res.status(200).json({
         id: shortcode,
@@ -290,7 +290,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (mediaUrl) {
       const isVideo = /\.mp4/i.test(mediaUrl) || (rap as any)?.type === 'video';
       const user = (rap as any)?.author || (rap as any)?.username || 'instagram_user';
-      const file = `sssinstagram_${shortcode}_${user}.${isVideo ? 'mp4' : 'jpg'}`;
+      const file = `igsavego_${shortcode}_${user}.${isVideo ? 'mp4' : 'jpg'}`;
       const item = {
         id: `item_${shortcode}_1`,
         type: isVideo ? 'video' : 'photo',
@@ -315,7 +315,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const mediaUrl: string | undefined = cob?.url;
     if (mediaUrl) {
       const isVideo = !/\.(jpg|jpeg|png|webp)/i.test(mediaUrl);
-      const file = `sssinstagram_${shortcode}.${isVideo ? 'mp4' : 'jpg'}`;
+      const file = `igsavego_${shortcode}.${isVideo ? 'mp4' : 'jpg'}`;
       const item = {
         id: `item_${shortcode}_1`, type: isVideo ? 'video' : 'photo',
         url: `/api/proxy-media?url=${encodeURIComponent(mediaUrl)}&filename=${encodeURIComponent(file)}`,
@@ -339,7 +339,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const { video, image, username } = parseEmbedHtml(html);
       const user = username || 'instagram_user';
       if (video) {
-        const file = `sssinstagram_${shortcode}_${user}.mp4`;
+        const file = `igsavego_${shortcode}_${user}.mp4`;
         const px = `/api/proxy-media?url=${encodeURIComponent(video)}&filename=${encodeURIComponent(file)}`;
         return res.status(200).json({
           id: shortcode, mediaType: rawUrl.includes('/reel') ? 'reels' : 'video', originalUrl: rawUrl,
@@ -351,7 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
       if (image) {
-        const file = `sssinstagram_${shortcode}_${user}.jpg`;
+        const file = `igsavego_${shortcode}_${user}.jpg`;
         const px = `/api/proxy-media?url=${encodeURIComponent(image)}&filename=${encodeURIComponent(file)}`;
         return res.status(200).json({
           id: shortcode, mediaType: 'photo', originalUrl: rawUrl,
@@ -377,7 +377,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const thumb: string = (oembed as any)?.thumbnail_url || kkImageFallback?.url || '';
   const author: string = (oembed as any)?.author_name || oembedAuthor;
   if (thumb) {
-    const file = `sssinstagram_${shortcode}_${author}.jpg`;
+    const file = `igsavego_${shortcode}_${author}.jpg`;
     const px = `/api/proxy-media?url=${encodeURIComponent(thumb)}&filename=${encodeURIComponent(file)}`;
     // Honest UX: the link smells like video (/p/ or /reel/) but Instagram
     // exposed no playable stream (verified: even its own embed page carries

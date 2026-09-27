@@ -11,20 +11,20 @@ export function updateDocumentSeo(
 ): void {
   const defaultContent = TOOL_CONTENT[tool][language] || TOOL_CONTENT[tool]['en'];
   const content = { ...defaultContent, ...overrideContent };
-  const siteName = branding?.siteName?.trim() || 'SSSInstagram';
+  const siteName = branding?.siteName?.trim() || 'IGSaveGo';
   const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://sssinstagram.app');
+  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
   const slug = TOOL_SLUGS[tool];
   const canonicalUrl = `${origin}/${language}/${slug}`;
 
   // Replace default brand name if custom siteName is set
   let dynamicTitle = content.title;
-  if (siteName !== 'SSSInstagram') {
-    dynamicTitle = dynamicTitle.replace(/SSSInstagram/gi, siteName);
+  if (siteName !== 'IGSaveGo') {
+    dynamicTitle = dynamicTitle.replace(/IGSaveGo/gi, siteName);
   }
   let dynamicDesc = content.metaDescription;
-  if (siteName !== 'SSSInstagram') {
-    dynamicDesc = dynamicDesc.replace(/SSSInstagram/gi, siteName);
+  if (siteName !== 'IGSaveGo') {
+    dynamicDesc = dynamicDesc.replace(/IGSaveGo/gi, siteName);
   }
 
   // 1. Update Title & Meta Description
@@ -119,9 +119,9 @@ export function updateKeywordPageSeo(
   tracking?: Partial<SeoTrackingSettings>
 ): void {
   if (typeof document === 'undefined') return;
-  const siteName = branding?.siteName?.trim() || 'SSSInstagram';
+  const siteName = branding?.siteName?.trim() || 'IGSaveGo';
   const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://sssinstagram.app');
+  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
   const canonicalUrl = `${origin}/${page.slug}`;
 
   document.title = page.title;
@@ -384,7 +384,7 @@ function updateStructuredDataSchemas(
   tool: MediaType,
   content: ToolSeoContent,
   canonicalUrl: string,
-  siteName: string = 'SSSInstagram'
+  siteName: string = 'IGSaveGo'
 ): void {
   // Remove previously injected schemas
   document.querySelectorAll('script[data-schema-type]').forEach((el) => el.remove());
@@ -464,7 +464,7 @@ function updateStructuredDataSchemas(
 }
 
 // Generate dynamic sitemap.xml string for all tools and languages
-export function generateDynamicSitemapXml(origin: string = 'https://sssinstagram.app'): string {
+export function generateDynamicSitemapXml(origin: string = 'https://www.igsavego.com'): string {
   const today = new Date().toISOString().split('T')[0];
   const tools: MediaType[] = ['video', 'photo', 'reels', 'story', 'highlights'];
 

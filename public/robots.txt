@@ -3,4 +3,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://sssinstagram.app/sitemap.xml
+Sitemap: https://www.igsavego.com/sitemap.xml

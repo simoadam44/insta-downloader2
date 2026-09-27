@@ -93,7 +93,7 @@ export const PwaBanner: React.FC<PwaBannerProps> = ({
       {/* Installed Notice */}
       {installedNotice && (
         <div className="mt-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 p-3 text-xs font-semibold text-emerald-300 text-center animate-in fade-in">
-          ✓ SSSInstagram has been added to your device Home Screen!
+          ✓ IGSaveGo has been added to your device Home Screen!
         </div>
       )}
 
@@ -104,14 +104,14 @@ export const PwaBanner: React.FC<PwaBannerProps> = ({
             <span>How to install on iPhone & iPad (Safari):</span>
           </div>
           <ol className="list-decimal list-inside space-y-1.5 text-slate-200">
-            <li>Open SSSInstagram in <strong>Safari</strong> on your iPhone or iPad.</li>
+            <li>Open IGSaveGo in <strong>Safari</strong> on your iPhone or iPad.</li>
             <li className="flex items-center gap-1">
               Tap the <Share2 className="h-3.5 w-3.5 inline text-blue-400" /> <strong>Share</strong> icon in the bottom Safari bar.
             </li>
             <li className="flex items-center gap-1">
               Scroll down and tap <PlusSquare className="h-3.5 w-3.5 inline text-slate-300" /> <strong>Add to Home Screen</strong>.
             </li>
-            <li>Tap <strong>Add</strong> in the top-right corner. Done! Launch SSSInstagram directly from your home screen.</li>
+            <li>Tap <strong>Add</strong> in the top-right corner. Done! Launch IGSaveGo directly from your home screen.</li>
           </ol>
         </div>
       )}

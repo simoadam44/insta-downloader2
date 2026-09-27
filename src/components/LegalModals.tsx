@@ -16,15 +16,15 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
       body: (
         <div className="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
           <p>
-            Welcome to SSSInstagram. By accessing or using our online Instagram media downloader, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must refrain from using the service.
+            Welcome to IGSaveGo. By accessing or using our online Instagram media downloader, you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, you must refrain from using the service.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">1. Personal & Non-Commercial Fair Use</h4>
           <p>
-            SSSInstagram is provided strictly for personal, non-commercial, and fair-use educational archiving purposes. You agree to download media only for offline viewing and backup of content that you own or have explicit permission from the original copyright owner to access.
+            IGSaveGo is provided strictly for personal, non-commercial, and fair-use educational archiving purposes. You agree to download media only for offline viewing and backup of content that you own or have explicit permission from the original copyright owner to access.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">2. Intellectual Property Rights</h4>
           <p>
-            All intellectual property rights, trademarks, copyrights, and ownership in and to photos, videos, reels, and stories downloaded via SSSInstagram belong exclusively to their respective creators, publishers, and Meta Platforms, Inc. You are strictly prohibited from redistributing, monetizing, re-uploading, or selling downloaded materials.
+            All intellectual property rights, trademarks, copyrights, and ownership in and to photos, videos, reels, and stories downloaded via IGSaveGo belong exclusively to their respective creators, publishers, and Meta Platforms, Inc. You are strictly prohibited from redistributing, monetizing, re-uploading, or selling downloaded materials.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">3. Prohibited Conduct</h4>
           <p>
@@ -32,7 +32,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           </p>
           <h4 className="font-bold text-slate-900 text-sm">4. Disclaimer of Warranties</h4>
           <p>
-            SSSInstagram is provided on an &ldquo;AS IS&rdquo; and &ldquo;AS AVAILABLE&rdquo; basis without warranties of any kind, express or implied.
+            IGSaveGo is provided on an &ldquo;AS IS&rdquo; and &ldquo;AS AVAILABLE&rdquo; basis without warranties of any kind, express or implied.
           </p>
         </div>
       ),
@@ -43,7 +43,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
       body: (
         <div className="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
           <p>
-            At SSSInstagram, your digital privacy and anonymity are our foundational priorities. This Privacy Policy clarifies how we treat information when you use our downloader.
+            At IGSaveGo, your digital privacy and anonymity are our foundational priorities. This Privacy Policy clarifies how we treat information when you use our downloader.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">1. Zero Account Logging & Anonymity</h4>
           <p>
@@ -59,7 +59,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
           </p>
           <h4 className="font-bold text-slate-900 text-sm">4. Security</h4>
           <p>
-            All web traffic between your browser and SSSInstagram is encrypted using industry-standard TLS 1.3 cryptographic protocols.
+            All web traffic between your browser and IGSaveGo is encrypted using industry-standard TLS 1.3 cryptographic protocols.
           </p>
         </div>
       ),
@@ -70,11 +70,11 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
       body: (
         <div className="space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
           <p>
-            SSSInstagram operates in strict compliance with the Digital Millennium Copyright Act (DMCA) and international copyright legislation.
+            IGSaveGo operates in strict compliance with the Digital Millennium Copyright Act (DMCA) and international copyright legislation.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">1. Trademark Notice</h4>
           <p>
-            &ldquo;Instagram&rdquo;, &ldquo;Reels&rdquo;, &ldquo;IGTV&rdquo;, and the Instagram logo are registered trademarks of Meta Platforms, Inc. SSSInstagram is an independent software tool and is NOT affiliated with, sponsored by, authorized by, or associated in any way with Meta Platforms, Inc. or Instagram.
+            &ldquo;Instagram&rdquo;, &ldquo;Reels&rdquo;, &ldquo;IGTV&rdquo;, and the Instagram logo are registered trademarks of Meta Platforms, Inc. IGSaveGo is an independent software tool and is NOT affiliated with, sponsored by, authorized by, or associated in any way with Meta Platforms, Inc. or Instagram.
           </p>
           <h4 className="font-bold text-slate-900 text-sm">2. DMCA Takedown Procedure</h4>
           <p>
@@ -87,7 +87,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({ type, onClose }) => {
             <li>A statement affirming good-faith belief of unauthorized use.</li>
           </ul>
           <p>
-            Email inquiries may be directed to: <span className="font-mono text-rose-600">dmca@sssinstagram.app</span>. We respond to verified notices within 24 to 48 business hours.
+            Email inquiries may be directed to: <span className="font-mono text-rose-600">dmca@igsavego.com</span>. We respond to verified notices within 24 to 48 business hours.
           </p>
         </div>
       ),

@@ -28,14 +28,14 @@ import { applySeoAndTrackingScripts, updateDocumentSeo, updateKeywordPageSeo } f
 import { extractInstagramMedia } from './services/extractorService';
 
 const DEFAULT_BRANDING_SETTINGS: SiteBrandingSettings = {
-  siteName: 'SSSInstagram',
+  siteName: 'IGSaveGo',
   siteTagline: 'Fast & HD Instagram Media Saver',
   logoType: 'default',
   customLogoUrl: '',
   faviconUrl: '/icon.svg',
   accentColor: '#f43f5e',
-  contactEmail: 'support@sssinstagram.app',
-  copyrightText: `© ${new Date().getFullYear()} SSSInstagram.app. All rights reserved. Ultra-Fast Free Instagram Downloader.`,
+  contactEmail: 'support@igsavego.com',
+  copyrightText: `© ${new Date().getFullYear()} IGSaveGo.com. All rights reserved. Ultra-Fast Free Instagram Downloader.`,
 };
 
 const DEFAULT_SEO_TRACKING: SeoTrackingSettings = {
@@ -46,7 +46,7 @@ const DEFAULT_SEO_TRACKING: SeoTrackingSettings = {
   customHeadCode: '',
   customBodyCode: '',
   enableRobotsIndex: true,
-  canonicalBaseUrl: 'https://sssinstagram.app',
+  canonicalBaseUrl: 'https://www.igsavego.com',
 };
 
 const DEFAULT_AD_SETTINGS: AdSettings = {

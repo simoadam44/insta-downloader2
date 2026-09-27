@@ -115,7 +115,7 @@ function buildVideoQualities(
 
     // 1080p Full HD (Top available stream)
     const topVersion = sorted[0];
-    const fn1080 = `sssinstagram_${shortcode}_1080p_FullHD_${safeUsername}.mp4`;
+    const fn1080 = `igsavego_${shortcode}_1080p_FullHD_${safeUsername}.mp4`;
     qualities.push({
       id: `q_1080p_${shortcode}`,
       label: '1080p Full HD',
@@ -129,7 +129,7 @@ function buildVideoQualities(
       bitrate: 'High Bitrate (Ultra HD)',
     });
   } else {
-    const fn1080 = `sssinstagram_${shortcode}_1080p_FullHD_${safeUsername}.mp4`;
+    const fn1080 = `igsavego_${shortcode}_1080p_FullHD_${safeUsername}.mp4`;
 
     qualities.push({
       id: `q_1080p_${shortcode}`,
@@ -158,7 +158,7 @@ function buildPhotoQualities(
 ) {
   const w = Number(width) || 1080;
   const h = Number(height) || 1350;
-  const fnFull = `sssinstagram_${shortcode}_UltraHD_${safeUsername}.jpg`;
+  const fnFull = `igsavego_${shortcode}_UltraHD_${safeUsername}.jpg`;
 
   return [
     {
@@ -936,7 +936,7 @@ app.all('/api/extract', async (req: Request, res: Response) => {
         const childHeight = child.original_height || height;
 
         if (isChildVideo && childVideoUrl) {
-          const filename = `sssinstagram_${shortcode}_slide_${idx + 1}_${safeUsername}.mp4`;
+          const filename = `igsavego_${shortcode}_slide_${idx + 1}_${safeUsername}.mp4`;
           const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(childVideoUrl)}&filename=${encodeURIComponent(filename)}`;
           const qualities = buildVideoQualities(
             `${shortcode}_slide_${idx + 1}`,
@@ -960,7 +960,7 @@ app.all('/api/extract', async (req: Request, res: Response) => {
             availableQualities: qualities,
           });
         } else if (childDisplayUrl) {
-          const filename = `sssinstagram_${shortcode}_slide_${idx + 1}_${safeUsername}.jpg`;
+          const filename = `igsavego_${shortcode}_slide_${idx + 1}_${safeUsername}.jpg`;
           const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(childDisplayUrl)}&filename=${encodeURIComponent(filename)}`;
           const photoQualities = buildPhotoQualities(
             `${shortcode}_slide_${idx + 1}`,
@@ -987,7 +987,7 @@ app.all('/api/extract', async (req: Request, res: Response) => {
 
     if (items.length === 0) {
       if (rawVideoUrl) {
-        const filename = `sssinstagram_${shortcode}_${safeUsername}.mp4`;
+        const filename = `igsavego_${shortcode}_${safeUsername}.mp4`;
         const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(filename)}`;
         const qualities = buildVideoQualities(
           shortcode,
@@ -1019,14 +1019,14 @@ app.all('/api/extract', async (req: Request, res: Response) => {
           audioTrack = {
             title: caption ? caption.substring(0, 35) : 'Original Audio Track',
             artist: safeUsername,
-            audioUrl: `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(`sssinstagram_${shortcode}_${safeUsername}_audio.mp3`)}`,
+            audioUrl: `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(`igsavego_${shortcode}_${safeUsername}_audio.mp3`)}`,
           };
         } else {
-          const audioFilename = `sssinstagram_${shortcode}_${safeUsername}_audio.mp3`;
+          const audioFilename = `igsavego_${shortcode}_${safeUsername}_audio.mp3`;
           audioTrack.audioUrl = `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(audioFilename)}`;
         }
       } else if (rawDisplayUrl) {
-        const filename = `sssinstagram_${shortcode}_${safeUsername}.jpg`;
+        const filename = `igsavego_${shortcode}_${safeUsername}.jpg`;
         const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(rawDisplayUrl)}&filename=${encodeURIComponent(filename)}`;
         const photoQualities = buildPhotoQualities(
           shortcode,
@@ -1062,7 +1062,7 @@ app.all('/api/extract', async (req: Request, res: Response) => {
 
     if (items.length === 0) {
       if (rawVideoUrl) {
-        const filename = `sssinstagram_${shortcode}_${safeUsername}.mp4`;
+        const filename = `igsavego_${shortcode}_${safeUsername}.mp4`;
         const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(filename)}`;
         const qualities = buildVideoQualities(
           shortcode,
@@ -1093,11 +1093,11 @@ app.all('/api/extract', async (req: Request, res: Response) => {
           audioTrack = {
             title: caption ? caption.substring(0, 35) : 'Original Audio Track',
             artist: safeUsername,
-            audioUrl: `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(`sssinstagram_${shortcode}_${safeUsername}_audio.mp3`)}`,
+            audioUrl: `/api/proxy-media?url=${encodeURIComponent(rawVideoUrl)}&filename=${encodeURIComponent(`igsavego_${shortcode}_${safeUsername}_audio.mp3`)}`,
           };
         }
       } else if (rawDisplayUrl) {
-        const filename = `sssinstagram_${shortcode}_${safeUsername}.jpg`;
+        const filename = `igsavego_${shortcode}_${safeUsername}.jpg`;
         const proxiedUrl = `/api/proxy-media?url=${encodeURIComponent(rawDisplayUrl)}&filename=${encodeURIComponent(filename)}`;
         const photoQualities = buildPhotoQualities(
           shortcode,
@@ -1320,7 +1320,7 @@ app.post('/api/admin/login', (req: Request, res: Response) => {
 
   // Generate signed cryptographic bearer session token valid for 24 hours
   const timestamp = Date.now();
-  const rawIdentifier = email || username || 'admin@sssinstagram.app';
+  const rawIdentifier = email || username || 'admin@igsavego.com';
   const safeUser = (typeof rawIdentifier === 'string' ? rawIdentifier.replace(/[^a-zA-Z0-9@._-]/g, '') : 'admin').substring(0, 50) || 'admin';
   const payload = `${safeUser}:${timestamp}`;
   const signature = crypto.createHmac('sha256', ADMIN_SECRET).update(payload).digest('hex');
@@ -1395,7 +1395,7 @@ app.get('/api/admin/verify', (req: Request, res: Response) => {
   if (!auth.valid) {
     return res.status(401).json({ valid: false, error: 'Authorization token invalid or expired.' });
   }
-  return res.json({ valid: true, user: { email: auth.user || 'admin@sssinstagram.app', role: 'admin' } });
+  return res.json({ valid: true, user: { email: auth.user || 'admin@igsavego.com', role: 'admin' } });
 });
 
 app.get('/api/admin/stats', (req: Request, res: Response) => {
@@ -1529,7 +1529,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SSSInstagram Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[IGSaveGo Server] Running on http://0.0.0.0:${PORT}`);
   });
 }
 

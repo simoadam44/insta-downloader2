@@ -40,6 +40,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   return res.status(200).json({
     valid: true,
-    user: { email: auth.user || 'admin@sssinstagram.app', role: 'admin' },
+    user: { email: auth.user || 'admin@igsavego.com', role: 'admin' },
   });
 }

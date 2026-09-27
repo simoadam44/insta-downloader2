@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!secret) {
     return res.status(503).json({ error: 'Session signing is not configured (SESSION_SECRET missing).' });
   }
-  const rawId = body.email || body.username || 'admin@sssinstagram.app';
+  const rawId = body.email || body.username || 'admin@igsavego.com';
   const safeUser = (typeof rawId === 'string' ? rawId.replace(/[^a-zA-Z0-9@._-]/g, '') : 'admin').substring(0, 50) || 'admin';
   const timestamp = Date.now();
   const payload = `${safeUser}:${timestamp}`;

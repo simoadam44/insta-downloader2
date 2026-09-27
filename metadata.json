@@ -1,5 +1,5 @@
 {
-  "name": "SSSInstagram - Instagram Video, Reels & Story Downloader",
+  "name": "IGSaveGo - Instagram Video, Reels & Story Downloader",
   "description": "Fast, free, and anonymous online Instagram Downloader. Save Instagram videos, reels, photos, stories, and highlights in high-definition 1080p MP4 and JPG.",
   "requestFramePermissions": ["clipboard-read"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

@@ -417,7 +417,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Lock className="h-7 w-7" />
             </div>
             <h2 className="mt-4 text-2xl font-bold text-white">
-              {localBranding.siteName || 'SSSInstagram'} Admin
+              {localBranding.siteName || 'IGSaveGo'} Admin
             </h2>
             <p className="mt-1 text-xs text-slate-400">
               Master Control Portal & SEO Management
@@ -438,7 +438,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 type="text"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                placeholder="admin@sssinstagram.app"
+                placeholder="admin@igsavego.com"
                 required
                 className="mt-1 w-full rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
               />
@@ -498,7 +498,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-white text-sm sm:text-base">
-                {localBranding.siteName || 'SSSInstagram'}
+                {localBranding.siteName || 'IGSaveGo'}
               </span>
               <span className="rounded-full bg-rose-500/20 px-2 py-0.5 text-[10px] font-bold text-rose-400">
                 PRO CONTROL
@@ -607,7 +607,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={localBranding.siteName}
                     onChange={(e) => setLocalBranding({ ...localBranding, siteName: e.target.value })}
-                    placeholder="e.g. SSSInstagram, SnapInsta, InstaSave"
+                    placeholder="e.g. IGSaveGo, SnapInsta, InstaSave"
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
                   />
                   <span className="text-[11px] text-slate-400 mt-1 block">
@@ -727,7 +727,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       type="email"
                       value={localBranding.contactEmail}
                       onChange={(e) => setLocalBranding({ ...localBranding, contactEmail: e.target.value })}
-                      placeholder="support@sssinstagram.app"
+                      placeholder="support@igsavego.com"
                       className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
                     />
                   </div>
@@ -741,7 +741,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={localBranding.copyrightText}
                     onChange={(e) => setLocalBranding({ ...localBranding, copyrightText: e.target.value })}
-                    placeholder={`© ${new Date().getFullYear()} SSSInstagram.app. All rights reserved.`}
+                    placeholder={`© ${new Date().getFullYear()} IGSaveGo.app. All rights reserved.`}
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
                   />
                 </div>
@@ -790,7 +790,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         {localBranding.logoType !== 'image' && (
                           <div>
                             <div className="text-sm font-black tracking-tight">
-                              {localBranding.siteName || 'SSSInstagram'}
+                              {localBranding.siteName || 'IGSaveGo'}
                             </div>
                             {previewDevice === 'desktop' && (
                               <div className="text-[9px] text-slate-400 font-medium">
@@ -972,7 +972,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={localSeoTracking.canonicalBaseUrl}
                     onChange={(e) => setLocalSeoTracking({ ...localSeoTracking, canonicalBaseUrl: e.target.value })}
-                    placeholder="https://sssinstagram.app"
+                    placeholder="https://igsavego.com"
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
                   />
                 </div>

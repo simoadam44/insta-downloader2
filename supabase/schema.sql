@@ -1,5 +1,5 @@
 -- =============================================================
--- SSSInstagram · Keywords & Tools Engine · Supabase schema
+-- IGSAVEGO · Keywords & Tools Engine · Supabase schema
 -- Run this ONCE in: Supabase Dashboard → SQL Editor → New query
 -- =============================================================
 
