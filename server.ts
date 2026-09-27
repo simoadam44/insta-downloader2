@@ -6,6 +6,7 @@ import crypto from 'crypto';
 // and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
 import {
   deleteKeywordPage,
+  getSupabaseLastError,
   isSupabaseConfigured,
   listKeywordPages,
   upsertKeywordPage,
