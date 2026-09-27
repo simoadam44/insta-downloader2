@@ -1,7 +1,9 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
 import crypto from 'crypto';
-import { createServer as createViteServer } from 'vite';
+// NOTE: vite is lazy-imported inside startServer() (dev only) so the
+// production bundle (dist/server.cjs) has zero dev-dependency requires
+// and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
 import {
   deleteKeywordPage,
   isSupabaseConfigured,
@@ -1497,6 +1499,7 @@ app.delete('/api/keyword-pages', async (req: Request, res: Response) => {
 // 4. Vite middleware (development) or static files (production)
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
