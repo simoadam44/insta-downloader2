@@ -1442,7 +1442,10 @@ app.get('/api/keyword-pages', async (req: Request, res: Response) => {
       if (!auth.valid) return res.status(401).json({ error: 'Unauthorized' });
     }
     const pages = await listKeywordPages(!all);
-    if (!pages) return res.status(500).json({ error: 'Failed to load keyword pages.' });
+    if (!pages) {
+      const detail = getSupabaseLastError();
+      return res.status(500).json({ error: 'Failed to load keyword pages.', detail });
+    }
     res.setHeader('Cache-Control', 'public, max-age=300');
     return res.json({ pages });
   } catch (e: any) {

@@ -2,6 +2,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { KeywordToolPage } from '../src/types';
 
 let adminClient: SupabaseClient | null | undefined;
+let lastError: string | null = null;
+
+// Last Supabase error message (safe to expose: codes/messages only, never keys).
+export function getSupabaseLastError(): string | null {
+  return lastError;
+}
 
 export function getSupabaseUrl(): string {
   // Manual setup uses SUPABASE_URL; the native Supabase↔Vercel integration
@@ -72,9 +78,14 @@ export async function listKeywordPages(enabledOnly: boolean): Promise<KeywordToo
     let q = sb.from('keyword_pages').select('*').order('created_at', { ascending: true });
     if (enabledOnly) q = q.eq('enabled', true);
     const { data, error } = await q;
-    if (error || !data) return null;
+    if (error || !data) {
+      lastError = error ? `${error.code || 'ERR'}: ${error.message}`.substring(0, 200) : 'empty';
+      return null;
+    }
+    lastError = null;
     return data.map(rowToPage);
-  } catch {
+  } catch (e: any) {
+    lastError = String(e?.message || e).substring(0, 200);
     return null;
   }
 }
