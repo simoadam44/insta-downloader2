@@ -90,6 +90,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(upstream.status).send(`CDN fetch failed: HTTP ${upstream.status}`);
   }
   const ct = upstream.headers.get('content-type') || (safeFilename.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+  // Guard: never serve an upstream error page (e.g. expired CDN signature
+  // returning HTML) as if it were media — that causes black players and
+  // confused downloads. Fail loudly so the UI can mint a fresh link.
+  if (
+    !ct.startsWith('video/') &&
+    !ct.startsWith('image/') &&
+    !ct.startsWith('audio/') &&
+    ct !== 'application/octet-stream'
+  ) {
+    return res.status(502).send('Upstream CDN did not return media (link may have expired). Please refresh.');
+  }
   res.setHeader('Content-Type', ct);
   res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
   res.setHeader('Accept-Ranges', 'bytes');

@@ -1243,6 +1243,17 @@ app.get('/api/proxy-media', async (req: Request, res: Response) => {
 
     // Stream the web stream to express response
     const contentType = response.headers.get('content-type') || (safeFilename.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+    // Guard: never serve an upstream error page (e.g. expired CDN signature
+    // returning HTML) as if it were media — that causes black players and
+    // confused downloads. Fail loudly so the UI can mint a fresh link.
+    if (
+      !contentType.startsWith('video/') &&
+      !contentType.startsWith('image/') &&
+      !contentType.startsWith('audio/') &&
+      contentType !== 'application/octet-stream'
+    ) {
+      return res.status(502).send('Upstream CDN did not return media (link may have expired). Please refresh.');
+    }
     const contentLength = response.headers.get('content-length');
     const contentRange = response.headers.get('content-range');
     const isDownload = req.query.dl === '1' || req.query.download === '1';

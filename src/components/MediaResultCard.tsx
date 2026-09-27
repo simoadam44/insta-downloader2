@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Download,
   Music,
@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ExternalLink,
   Video,
+  RefreshCw,
 } from 'lucide-react';
 import { ExtractedMedia, LanguageCode, QualityOption } from '../types';
 import { UI_TRANSLATIONS } from '../data/i18nData';
@@ -24,16 +25,33 @@ interface MediaResultCardProps {
   media: ExtractedMedia;
   currentLanguage: LanguageCode;
   onReset: () => void;
+  // Called when the preview stream fails (Instagram CDN signatures expire).
+  // Parent should re-extract the same URL to mint fresh links.
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const MediaResultCard: React.FC<MediaResultCardProps> = ({
   media,
   currentLanguage,
   onReset,
+  onRefresh,
+  isRefreshing,
 }) => {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [downloadingQualityId, setDownloadingQualityId] = useState<string | null>(null);
+  // CDN links expire: any preview failure flips this and offers a 1-tap refresh.
+  const [mediaError, setMediaError] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
+
+  // Fresh media (new extract or new slide) clears the error state.
+  useEffect(() => {
+    setMediaError(false);
+  }, [media.id, activeSlideIndex]);
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [media.id]);
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
   const isArabic = currentLanguage === 'ar';
@@ -110,12 +128,19 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
         <div className="flex flex-wrap items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/50 gap-3">
           {/* Author info */}
           <div className="flex items-center gap-3">
-            <img
-              src={media.author.avatar}
-              alt={media.author.username}
-              className="h-11 w-11 rounded-full border border-slate-200 object-cover ring-2 ring-rose-500/20"
-              referrerPolicy="no-referrer"
-            />
+            {avatarBroken || !media.author.avatar ? (
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-rose-500 to-purple-600 text-base font-bold text-white ring-2 ring-rose-500/20">
+                {(media.author.username || 'I').charAt(0).toUpperCase()}
+              </div>
+            ) : (
+              <img
+                src={media.author.avatar}
+                alt={media.author.username}
+                onError={() => setAvatarBroken(true)}
+                className="h-11 w-11 rounded-full border border-slate-200 object-cover ring-2 ring-rose-500/20"
+                referrerPolicy="no-referrer"
+              />
+            )}
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="font-bold text-slate-900 text-sm sm:text-base hover:underline cursor-pointer">
@@ -155,19 +180,45 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
             <div className="relative w-full overflow-hidden rounded-2xl bg-slate-900 shadow-md aspect-4/5 sm:aspect-square flex items-center justify-center">
               {currentItem.type === 'video' ? (
                 <video
+                  key={currentItem.url}
                   src={currentItem.url}
                   poster={currentItem.thumbnail}
                   controls
                   playsInline
+                  preload="metadata"
+                  onError={() => setMediaError(true)}
                   className="h-full w-full object-contain"
                 />
               ) : (
                 <img
                   src={currentItem.url}
                   alt={media.caption}
+                  onError={() => setMediaError(true)}
                   className="h-full w-full object-cover"
                   referrerPolicy="no-referrer"
                 />
+              )}
+
+              {/* Expired-link overlay: Instagram CDN signatures expire — 1 tap mints fresh links */}
+              {mediaError && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/90 p-6 text-center backdrop-blur-xs">
+                  <RefreshCw className={`h-8 w-8 text-rose-400 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  <p className="text-xs font-semibold text-white leading-relaxed">
+                    {isArabic
+                      ? 'انتهت صلاحية رابط المعاينة (روابط انستقرام مؤقتة). حدّث للحصول على رابط جديد فوراً.'
+                      : 'This preview link expired (Instagram links are temporary). Refresh to mint a fresh one.'}
+                  </p>
+                  {onRefresh && (
+                    <button
+                      onClick={onRefresh}
+                      disabled={isRefreshing}
+                      className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2 text-xs font-bold text-white hover:brightness-105 transition-all disabled:opacity-60 cursor-pointer"
+                    >
+                      <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      <span>{isRefreshing ? (isArabic ? 'جاري التحديث...' : 'Refreshing...') : (isArabic ? 'تحديث الرابط' : 'Refresh link')}</span>
+                    </button>
+                  )}
+                </div>
               )}
 
               {/* Active Selected Quality badge tag */}

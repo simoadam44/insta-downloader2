@@ -219,6 +219,8 @@ export default function App() {
   const [extractedMedia, setExtractedMedia] = useState<ExtractedMedia | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Last submitted URL — reused to mint fresh CDN links when a preview expires.
+  const [lastExtractedUrl, setLastExtractedUrl] = useState<string | null>(null);
 
   // Modals
   const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'privacy' | 'disclaimer' | null>(null);
@@ -301,6 +303,7 @@ export default function App() {
   const handleExtractMedia = async (url: string) => {
     setIsExtracting(true);
     setErrorMessage(null);
+    setLastExtractedUrl(url);
 
     try {
       const result = await extractInstagramMedia(url, activeTool);
@@ -433,6 +436,8 @@ export default function App() {
             <MediaResultCard
               media={extractedMedia}
               currentLanguage={currentLanguage}
+              onRefresh={lastExtractedUrl ? () => handleExtractMedia(lastExtractedUrl) : undefined}
+              isRefreshing={isExtracting}
               onReset={() => {
                 setExtractedMedia(null);
                 setErrorMessage(null);
