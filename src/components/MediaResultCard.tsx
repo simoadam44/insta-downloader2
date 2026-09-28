@@ -182,7 +182,16 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
           {media.note && (
             <div className="md:col-span-12 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 leading-relaxed">
               <span className="mt-0.5 shrink-0">ℹ️</span>
-              <span>{media.note}</span>
+              <span className="flex-1">{media.note}</span>
+              {onRefresh && (
+                <button
+                  onClick={onRefresh}
+                  disabled={isRefreshing}
+                  className="shrink-0 rounded-lg bg-amber-600 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-amber-700 transition-colors disabled:opacity-60 cursor-pointer"
+                >
+                  {isRefreshing ? (isArabic ? 'جاري...' : '...') : (isArabic ? 'إعادة المحاولة' : 'Retry')}
+                </button>
+              )}
             </div>
           )}
           {/* Left Column: Media Player / Preview */}
