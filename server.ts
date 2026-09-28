@@ -4,6 +4,7 @@ import crypto from 'crypto';
 // NOTE: vite is lazy-imported inside startServer() (dev only) so the
 // production bundle (dist/server.cjs) has zero dev-dependency requires
 // and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
+import { buildSitemapXml } from './lib/sitemapBuilder';
 import {
   deleteGuide,
   deleteKeywordPage,
@@ -392,6 +393,37 @@ function recordLog(
 // 1. Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 1b. Dynamic sitemap.xml — always fresh (Supabase keywords + guides),
+// cached in memory for 24h. Registered before static middleware so it wins
+// over any stale dist/sitemap.xml file.
+let sitemapCache: { xml: string; expires: number } | null = null;
+app.get('/sitemap.xml', async (req: Request, res: Response) => {
+  try {
+    if (sitemapCache && Date.now() < sitemapCache.expires) {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('X-Sitemap-Cache', 'HIT');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(sitemapCache.xml);
+    }
+    const host = (req.headers.host as string) || 'www.igsavego.com';
+    const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+    const origin = `${proto}://${host}`;
+    const [kw, gd] = await Promise.all([listKeywordPages(true), listGuides(true)]);
+    const xml = buildSitemapXml(
+      origin,
+      (kw || []).map((k) => ({ slug: k.slug })),
+      (gd || []).map((g) => ({ slug: g.slug, updatedAt: g.updatedAt }))
+    );
+    sitemapCache = { xml, expires: Date.now() + 24 * 60 * 60 * 1000 };
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('X-Sitemap-Cache', 'MISS');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(xml);
+  } catch (e: any) {
+    return res.status(500).send('Sitemap generation failed');
+  }
 });
 
 // 2. Real Instagram Extractor API
