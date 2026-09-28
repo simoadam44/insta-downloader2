@@ -1,6 +1,7 @@
-import { AdSettings, KeywordToolPage, LanguageCode, MediaType, SeoTrackingSettings, SiteBrandingSettings, ToolSeoContent } from '../types';
+import { AdSettings, GuideArticle, KeywordToolPage, LanguageCode, MediaType, SeoTrackingSettings, SiteBrandingSettings, ToolSeoContent } from '../types';
 import { SUPPORTED_LANGUAGES, TOOL_CONTENT, TOOL_SLUGS } from '../data/i18nData';
 import { buildKeywordFaqs, loadKeywordPages } from '../data/keywordPages';
+import { loadGuides } from '../data/guides';
 
 export function updateDocumentSeo(
   language: LanguageCode,
@@ -228,6 +229,173 @@ export function updateKeywordPageSeo(
     script.textContent = JSON.stringify(schema);
     document.head.appendChild(script);
   });
+}
+
+// SEO for a guide article (Blog engine): unique title/description,
+// canonical /blog/{slug}, hreflang=self, Article + FAQPage + BreadcrumbList.
+export function updateGuideSeo(
+  guide: GuideArticle,
+  branding?: Partial<SiteBrandingSettings>,
+  tracking?: Partial<SeoTrackingSettings>
+): void {
+  if (typeof document === 'undefined') return;
+  const siteName = branding?.siteName?.trim() || 'IGSaveGo';
+  const customOrigin = tracking?.canonicalBaseUrl?.trim();
+  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const canonicalUrl = `${origin}/blog/${guide.slug}`;
+
+  document.title = guide.title;
+
+  const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
+    let tag = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute(attr, key);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+  };
+  setMeta('name', 'description', guide.metaDescription);
+  setMeta('name', 'keywords', `${guide.keyword}, ${guide.keyword} guide, how to ${guide.keyword}`);
+  setMeta('property', 'og:title', guide.title);
+  setMeta('property', 'og:description', guide.metaDescription);
+  setMeta('property', 'og:url', canonicalUrl);
+  setMeta('property', 'og:type', 'article');
+  setMeta('property', 'og:site_name', siteName);
+  setMeta('name', 'twitter:title', guide.title);
+  setMeta('name', 'twitter:description', guide.metaDescription);
+  if (branding?.customLogoUrl) {
+    setMeta('property', 'og:image', branding.customLogoUrl);
+    setMeta('name', 'twitter:image', branding.customLogoUrl);
+  }
+
+  let canonicalLink = document.querySelector('link[rel="canonical"]');
+  if (!canonicalLink) {
+    canonicalLink = document.createElement('link');
+    canonicalLink.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonicalLink);
+  }
+  canonicalLink.setAttribute('href', canonicalUrl);
+
+  document.querySelectorAll('link[rel="alternate"][hreflang]').forEach((el) => el.remove());
+  const selfLang = document.createElement('link');
+  selfLang.setAttribute('rel', 'alternate');
+  selfLang.setAttribute('hreflang', guide.lang);
+  selfLang.setAttribute('href', canonicalUrl);
+  document.head.appendChild(selfLang);
+
+  const langInfo = SUPPORTED_LANGUAGES.find((l) => l.code === guide.lang);
+  document.documentElement.lang = guide.lang;
+  document.documentElement.dir = langInfo?.dir || 'ltr';
+
+  document.querySelectorAll('script[data-schema-type]').forEach((el) => el.remove());
+  const isoDate = guide.updatedAt || new Date().toISOString();
+  const schemas = [
+    {
+      type: 'Article',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'Article',
+        '@id': `${canonicalUrl}#article`,
+        headline: guide.h1,
+        description: guide.metaDescription,
+        url: canonicalUrl,
+        inLanguage: guide.lang,
+        datePublished: isoDate,
+        dateModified: isoDate,
+        author: { '@type': 'Organization', name: siteName, url: origin },
+        publisher: { '@type': 'Organization', name: siteName },
+      },
+    },
+    {
+      type: 'FAQPage',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#faq`,
+        inLanguage: guide.lang,
+        mainEntity: guide.faqs.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      },
+    },
+    {
+      type: 'BreadcrumbList',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: siteName, item: origin },
+          { '@type': 'ListItem', position: 2, name: 'Guides', item: `${origin}/blog` },
+          { '@type': 'ListItem', position: 3, name: guide.h1, item: canonicalUrl },
+        ],
+      },
+    },
+  ];
+  schemas.forEach(({ type, schema }) => {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-schema-type', type);
+    script.textContent = JSON.stringify(schema);
+    document.head.appendChild(script);
+  });
+}
+
+// SEO for the /blog hub page.
+export function updateBlogHubSeo(
+  lang: LanguageCode,
+  branding?: Partial<SiteBrandingSettings>,
+  tracking?: Partial<SeoTrackingSettings>
+): void {
+  if (typeof document === 'undefined') return;
+  const siteName = branding?.siteName?.trim() || 'IGSaveGo';
+  const customOrigin = tracking?.canonicalBaseUrl?.trim();
+  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const canonicalUrl = `${origin}/blog`;
+  const isArabic = lang === 'ar';
+  const title = isArabic
+    ? `مدونة ${siteName} — شروحات تحميل انستقرام خطوة بخطوة`
+    : `${siteName} Blog — Step-by-Step Instagram Download Guides`;
+  const desc = isArabic
+    ? 'شروحات تحميل فيديو وريلز وستوري وصور انستقرام بجودة عالية: أدلة خطوة بخطوة بدون برامج وبدون حساب.'
+    : 'Step-by-step Instagram video, reels, story and photo download guides in HD — no apps, no login.';
+
+  document.title = title;
+  let metaDesc = document.querySelector('meta[name="description"]');
+  if (!metaDesc) {
+    metaDesc = document.createElement('meta');
+    metaDesc.setAttribute('name', 'description');
+    document.head.appendChild(metaDesc);
+  }
+  metaDesc.setAttribute('content', desc);
+
+  let canonicalLink = document.querySelector('link[rel="canonical"]');
+  if (!canonicalLink) {
+    canonicalLink = document.createElement('link');
+    canonicalLink.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonicalLink);
+  }
+  canonicalLink.setAttribute('href', canonicalUrl);
+
+  document.querySelectorAll('script[data-schema-type]').forEach((el) => el.remove());
+  const script = document.createElement('script');
+  script.type = 'application/ld+json';
+  script.setAttribute('data-schema-type', 'CollectionPage');
+  script.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: title,
+    url: canonicalUrl,
+    inLanguage: lang,
+    description: desc,
+  });
+  document.head.appendChild(script);
+
+  const langInfo = SUPPORTED_LANGUAGES.find((l) => l.code === lang);
+  document.documentElement.lang = lang;
+  document.documentElement.dir = langInfo?.dir || 'ltr';
 }
 
 // Inject Analytics, Verification Meta Tags, AdSense, and Custom Scripts
@@ -521,6 +689,29 @@ export function generateDynamicSitemapXml(origin: string = 'https://www.igsavego
       });
   } catch {
     // localStorage unavailable (SSR) — skip keyword pages
+  }
+
+  // Blog hub + guide articles (Blog engine) — long-tail SEO pages
+  try {
+    xml += `  <url>\n`;
+    xml += `    <loc>${origin}/blog</loc>\n`;
+    xml += `    <lastmod>${today}</lastmod>\n`;
+    xml += `    <changefreq>daily</changefreq>\n`;
+    xml += `    <priority>0.8</priority>\n`;
+    xml += `  </url>\n`;
+    loadGuides()
+      .filter((g) => g.enabled && g.slug)
+      .forEach((g) => {
+        const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
+        xml += `  <url>\n`;
+        xml += `    <loc>${origin}/blog/${g.slug}</loc>\n`;
+        xml += `    <lastmod>${lastmod}</lastmod>\n`;
+        xml += `    <changefreq>weekly</changefreq>\n`;
+        xml += `    <priority>0.8</priority>\n`;
+        xml += `  </url>\n`;
+      });
+  } catch {
+    // localStorage unavailable (SSR) — skip guides
   }
 
   xml += `</urlset>`;

@@ -179,6 +179,30 @@ export interface KeywordToolPage {
   enabled: boolean;
 }
 
+// Long-tail guide article (Blog engine) targeting question queries like
+// "how to download reels on iPhone". Rendered under /blog/{slug}.
+export interface GuideSection {
+  heading: string;
+  body: string;
+}
+
+export interface GuideArticle {
+  id: string;
+  slug: string;
+  lang: LanguageCode;
+  keyword: string;
+  tool: MediaType;
+  title: string;
+  metaDescription: string;
+  h1: string;
+  excerpt: string;
+  sections: GuideSection[];
+  faqs: FaqItem[];
+  relatedSlugs: string[];
+  enabled: boolean;
+  updatedAt?: string;
+}
+
 export interface ServerSystemInfo {
   uptimeSeconds: number;
   memoryHeapUsedMB: number;

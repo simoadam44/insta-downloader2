@@ -24,7 +24,9 @@ import {
 } from './types';
 import { SLUG_TO_TOOL, SUPPORTED_LANGUAGES, TOOL_SLUGS } from './data/i18nData';
 import { buildKeywordFaqs, findKeywordPage, refreshKeywordPages } from './data/keywordPages';
-import { applySeoAndTrackingScripts, updateDocumentSeo, updateKeywordPageSeo } from './services/seoEngine';
+import { findGuide, guidesByLang, refreshGuides } from './data/guides';
+import { applySeoAndTrackingScripts, updateBlogHubSeo, updateDocumentSeo, updateGuideSeo, updateKeywordPageSeo } from './services/seoEngine';
+import { BlogHub, ArticlePage } from './components/Blog';
 import { extractInstagramMedia } from './services/extractorService';
 
 const DEFAULT_BRANDING_SETTINGS: SiteBrandingSettings = {
@@ -109,15 +111,35 @@ const DEFAULT_API_SETTINGS: ApiSettings = {
 
 export default function App() {
   // Parse initial route from location
-  const parseRoute = (): { lang: LanguageCode; tool: MediaType; isAdmin: boolean; keywordSlug: string | null } => {
+  const parseRoute = (): {
+    lang: LanguageCode;
+    tool: MediaType;
+    isAdmin: boolean;
+    keywordSlug: string | null;
+    blog: { type: 'hub' } | { type: 'article'; slug: string } | null;
+  } => {
     if (typeof window === 'undefined') {
-      return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null };
+      return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: null };
     }
     const path = window.location.pathname.toLowerCase().replace(/^\/|\/$/g, '');
     const segments = path.split('/');
 
     if (segments[0] === 'admin') {
-      return { lang: 'en', tool: 'video', isAdmin: true, keywordSlug: null };
+      return { lang: 'en', tool: 'video', isAdmin: true, keywordSlug: null, blog: null };
+    }
+
+    // Blog hub + articles: /blog and /blog/{slug}
+    if (segments[0] === 'blog') {
+      if (segments.length === 1) {
+        return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: { type: 'hub' } };
+      }
+      if (segments.length === 2) {
+        const rawSlug = window.location.pathname.replace(/^\/|\/$/g, '').split('/')[1];
+        const guide = findGuide(rawSlug);
+        if (guide) {
+          return { lang: guide.lang, tool: guide.tool, isAdmin: false, keywordSlug: null, blog: { type: 'article', slug: guide.slug } };
+        }
+      }
     }
 
     // Keyword landing page: /{slug} (Keywords & Tools Engine)
@@ -125,7 +147,7 @@ export default function App() {
       const rawSeg = window.location.pathname.replace(/^\/|\/$/g, '').split('/')[0];
       const kwPage = findKeywordPage(rawSeg);
       if (kwPage) {
-        return { lang: kwPage.lang, tool: kwPage.tool, isAdmin: false, keywordSlug: kwPage.slug };
+        return { lang: kwPage.lang, tool: kwPage.tool, isAdmin: false, keywordSlug: kwPage.slug, blog: null };
       }
     }
 
@@ -147,7 +169,7 @@ export default function App() {
       }
     }
 
-    return { lang: detectedLang, tool: detectedTool, isAdmin: false, keywordSlug: null };
+    return { lang: detectedLang, tool: detectedTool, isAdmin: false, keywordSlug: null, blog: null };
   };
 
   const initialRoute = parseRoute();
@@ -155,6 +177,9 @@ export default function App() {
   const [activeTool, setActiveTool] = useState<MediaType>(initialRoute.tool);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(initialRoute.isAdmin);
   const [keywordSlug, setKeywordSlug] = useState<string | null>(initialRoute.keywordSlug);
+  const [blogView, setBlogView] = useState<{ type: 'hub' } | { type: 'article'; slug: string } | null>(
+    initialRoute.blog
+  );
   // Becomes true when the shared keyword list (Supabase) arrives, so landing
   // pages + their SEO resolve for every visitor — not just the admin's browser.
   const [sharedKwReady, setSharedKwReady] = useState(false);
@@ -249,16 +274,39 @@ export default function App() {
     }
   }, [seoOverrides, brandingSettings]);
 
-  // Initial SEO sync on mount (keyword landing pages use their own SEO)
+  // Shared guides list (Supabase) refresh on mount for every visitor.
+  const [sharedGuidesReady, setSharedGuidesReady] = useState(false);
+  useEffect(() => {
+    refreshGuides().then((remote) => {
+      if (remote) setSharedGuidesReady(true);
+    });
+  }, []);
+  const activeGuide = blogView?.type === 'article' ? findGuide(blogView.slug) : null;
+
+  // Initial SEO sync on mount (keyword landing pages + blog use their own SEO)
   useEffect(() => {
     if (isAdminOpen) return;
+    if (blogView) {
+      if (blogView.type === 'article') {
+        const g = findGuide(blogView.slug);
+        if (g) {
+          setCurrentLanguage(g.lang);
+          setActiveTool(g.tool);
+          updateGuideSeo(g, brandingSettings, seoTrackingSettings);
+          return;
+        }
+      } else {
+        updateBlogHubSeo(currentLanguage);
+        return;
+      }
+    }
     if (keywordPage) {
       updateKeywordPageSeo(keywordPage, brandingSettings, seoTrackingSettings);
       return;
     }
     syncRouteAndSeo(currentLanguage, activeTool, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLanguage, activeTool, isAdminOpen, keywordSlug, sharedKwReady, syncRouteAndSeo]);
+  }, [currentLanguage, activeTool, isAdminOpen, keywordSlug, sharedKwReady, blogView, sharedGuidesReady, syncRouteAndSeo]);
 
   // Browser back/forward navigation support
   useEffect(() => {
@@ -268,6 +316,18 @@ export default function App() {
       setCurrentLanguage(route.lang);
       setActiveTool(route.tool);
       setKeywordSlug(route.keywordSlug);
+      setBlogView(route.blog);
+      if (route.blog?.type === 'article') {
+        const g = findGuide(route.blog.slug);
+        if (g) {
+          updateGuideSeo(g);
+          return;
+        }
+      }
+      if (route.blog?.type === 'hub') {
+        updateBlogHubSeo(route.lang);
+        return;
+      }
       if (route.keywordSlug) {
         const kw = findKeywordPage(route.keywordSlug);
         if (kw) updateKeywordPageSeo(kw);
@@ -283,6 +343,7 @@ export default function App() {
   // Language switch handler
   const handleSelectLanguage = (newLang: LanguageCode) => {
     setKeywordSlug(null);
+    setBlogView(null);
     setCurrentLanguage(newLang);
     syncRouteAndSeo(newLang, activeTool, true);
   };
@@ -290,6 +351,7 @@ export default function App() {
   // Tool switch handler
   const handleSelectTool = (newTool: MediaType) => {
     setKeywordSlug(null);
+    setBlogView(null);
     setActiveTool(newTool);
     setExtractedMedia(null);
     setErrorMessage(null);
@@ -297,6 +359,37 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  // Blog navigation (client-side, history-aware)
+  const openBlogHub = () => {
+    setBlogView({ type: 'hub' });
+    setExtractedMedia(null);
+    setErrorMessage(null);
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname !== '/blog') window.history.pushState(null, '', '/blog');
+      window.scrollTo({ top: 0 });
+    }
+  };
+  const openGuide = (slug: string) => {
+    const g = findGuide(slug);
+    setBlogView({ type: 'article', slug: g ? g.slug : slug });
+    setExtractedMedia(null);
+    setErrorMessage(null);
+    if (g) {
+      setCurrentLanguage(g.lang);
+      setActiveTool(g.tool);
+    }
+    if (typeof window !== 'undefined') {
+      const path = `/blog/${encodeURIComponent(g ? g.slug : slug)}`;
+      if (window.location.pathname !== path) window.history.pushState(null, '', path);
+      window.scrollTo({ top: 0 });
+    }
+  };
+  // From a guide CTA: leave blog, open the downloader tool page.
+  const openToolFromBlog = (tool: MediaType) => {
+    setBlogView(null);
+    handleSelectTool(tool);
   };
 
   // Instagram extraction caller
@@ -416,6 +509,47 @@ export default function App() {
 
       {/* 2. Main Hero Section */}
       <main className="flex-1">
+        {blogView ? (
+          blogView.type === 'hub' ? (
+            <BlogHub
+              guides={guidesByLang(currentLanguage)}
+              lang={currentLanguage}
+              siteName={brandingSettings.siteName || 'IGSaveGo'}
+              onOpenArticle={openGuide}
+              onOpenTool={openToolFromBlog}
+            />
+          ) : activeGuide ? (
+            <ArticlePage
+              guide={activeGuide}
+              related={(() => {
+                const all = guidesByLang(activeGuide.lang).filter((g) => g.id !== activeGuide.id);
+                const explicit = activeGuide.relatedSlugs
+                  .map((s) => findGuide(s))
+                  .filter((g): g is NonNullable<typeof g> => !!g && g.id !== activeGuide.id);
+                const merged = [...explicit];
+                for (const g of all) {
+                  if (merged.length >= 4) break;
+                  if (!merged.some((m) => m.id === g.id)) merged.push(g);
+                }
+                return merged.slice(0, 4);
+              })()}
+              lang={currentLanguage}
+              siteName={brandingSettings.siteName || 'IGSaveGo'}
+              onOpenArticle={openGuide}
+              onOpenTool={openToolFromBlog}
+              onBackToBlog={openBlogHub}
+            />
+          ) : (
+            <BlogHub
+              guides={guidesByLang(currentLanguage)}
+              lang={currentLanguage}
+              siteName={brandingSettings.siteName || 'IGSaveGo'}
+              onOpenArticle={openGuide}
+              onOpenTool={openToolFromBlog}
+            />
+          )
+        ) : (
+          <>
         <HeroSection
           currentLanguage={currentLanguage}
           activeTool={activeTool}
@@ -477,6 +611,8 @@ export default function App() {
 
         {/* Optional Footer Ad Banner */}
         <AdBanner slot="footerBanner" config={adSettings.footerBanner} />
+          </>
+        )}
       </main>
 
       {/* 9. Comprehensive Footer */}
@@ -489,6 +625,7 @@ export default function App() {
         onOpenLegal={(type) => setActiveLegalModal(type)}
         onOpenSitemap={() => setIsSitemapOpen(true)}
         onOpenAdmin={handleOpenAdmin}
+        onOpenBlog={openBlogHub}
       />
 
       {/* 10. Sticky Floating Footer Ad Banner */}

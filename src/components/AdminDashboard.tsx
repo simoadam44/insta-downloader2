@@ -30,12 +30,14 @@ import {
   Smartphone,
   Monitor,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import {
   AdminStats,
   AdSettings,
   AdSlotConfig,
   ApiSettings,
+  GuideArticle,
   KeywordToolPage,
   LanguageCode,
   LiveRequestLog,
@@ -54,6 +56,15 @@ import {
   sanitizeSlug,
   saveKeywordPages,
 } from '../data/keywordPages';
+import {
+  apiDeleteGuide,
+  apiFetchAllGuides,
+  apiUpsertGuide,
+  emptyGuide,
+  loadGuides,
+  sanitizeGuideSlug,
+  saveGuides,
+} from '../data/guides';
 import { getApiBaseUrl } from '../services/extractorService';
 import { generateDynamicSitemapXml } from '../services/seoEngine';
 
@@ -93,7 +104,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Active Admin Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'seo_tracking' | 'ads' | 'content' | 'keywords' | 'api' | 'security'>('branding');
+  const [activeTab, setActiveTab] = useState<'overview' | 'branding' | 'seo_tracking' | 'ads' | 'content' | 'keywords' | 'guides' | 'api' | 'security'>('branding');
 
   // Password Management State
   const [currentPassInput, setCurrentPassInput] = useState('');
@@ -396,6 +407,83 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
   };
 
+  // Guides / Blog Engine State (long-tail SEO articles)
+  const [guides, setGuides] = useState<GuideArticle[]>(() => loadGuides());
+  const [editingGuide, setEditingGuide] = useState<GuideArticle | null>(null);
+  const [guideFormError, setGuideFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    apiFetchAllGuides().then((remote) => {
+      if (remote && remote.length > 0) {
+        setGuides(remote);
+        saveGuides(remote);
+      }
+    });
+  }, [isAuthenticated]);
+
+  const persistGuides = (list: GuideArticle[], notice: string) => {
+    setGuides(list);
+    saveGuides(list);
+    setSaveNotice(notice);
+    setTimeout(() => setSaveNotice(null), 3000);
+  };
+
+  const handleSaveGuide = async () => {
+    if (!editingGuide) return;
+    const slug = sanitizeGuideSlug(editingGuide.slug);
+    if (!slug) {
+      setGuideFormError('Slug is required (e.g. download-instagram-reels-on-iphone).');
+      return;
+    }
+    if (!editingGuide.title.trim() || !editingGuide.h1.trim()) {
+      setGuideFormError('Title and H1 are required for SEO.');
+      return;
+    }
+    const clash = guides.find((g) => g.id !== editingGuide.id && g.slug.toLowerCase() === slug.toLowerCase());
+    if (clash) {
+      setGuideFormError(`Slug "/blog/${slug}" is already used by another guide.`);
+      return;
+    }
+    const guide: GuideArticle = {
+      ...editingGuide,
+      slug,
+      sections: (editingGuide.sections || []).filter((s) => s.heading.trim() || s.body.trim()),
+      faqs: (editingGuide.faqs || []).filter((f) => f.question.trim() && f.answer.trim()),
+      relatedSlugs: (editingGuide.relatedSlugs || []).map((s) => s.trim()).filter(Boolean),
+    };
+    const isNew = !guides.some((g) => g.id === guide.id);
+    const next = isNew ? [...guides, guide] : guides.map((g) => (g.id === guide.id ? guide : g));
+    const res = await apiUpsertGuide(guide);
+    if (res === 'ok') {
+      persistGuides(next, isNew ? `Guide "/blog/${slug}" published for all visitors!` : `Guide "/blog/${slug}" updated!`);
+    } else if (res === 'no-db') {
+      persistGuides(next, 'Saved locally only - guides database (Supabase) is not configured.');
+    } else {
+      persistGuides(next, 'Saved locally - could not reach the shared database.');
+    }
+    setEditingGuide(null);
+  };
+
+  const handleDeleteGuide = async (id: string) => {
+    const target = guides.find((g) => g.id === id);
+    const next = guides.filter((g) => g.id !== id);
+    const res = await apiDeleteGuide(id);
+    persistGuides(
+      next,
+      res === 'ok' ? `Guide "/blog/${target?.slug || id}" deleted for all visitors.` : 'Deleted locally - shared database not reachable.'
+    );
+  };
+
+  const handleToggleGuide = async (id: string) => {
+    const guide = guides.find((g) => g.id === id);
+    if (!guide) return;
+    const updated = { ...guide, enabled: !guide.enabled };
+    const next = guides.map((g) => (g.id === id ? updated : g));
+    const res = await apiUpsertGuide(updated);
+    persistGuides(next, res === 'ok' ? 'Guide visibility updated for all visitors.' : 'Visibility updated locally only.');
+  };
+
   // SEO Health Score Calculation
   const calculateSeoScore = () => {
     let score = 50;
@@ -545,6 +633,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             { id: 'ads', label: 'AdSense & Ads', icon: DollarSign },
             { id: 'content', label: 'Content Manager', icon: FileEdit },
             { id: 'keywords', label: 'Keywords & Tools Engine', icon: Search },
+            { id: 'guides', label: 'Blog & Guides', icon: BookOpen },
             { id: 'overview', label: 'Live Telemetry', icon: BarChart3 },
             { id: 'api', label: 'API & Proxies', icon: Cpu },
             { id: 'security', label: 'Security & Auth', icon: Lock },
@@ -1578,6 +1667,347 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     >
                       <Check className="h-4 w-4" />
                       <span>Publish Page</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* BLOG & GUIDES TAB */}
+        {/* ========================================================= */}
+        {activeTab === 'guides' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-amber-400" />
+                  <span>Blog & Long-Tail Guides Engine</span>
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">
+                  Question-style articles (e.g. "download reels on iPhone") rendered under /blog/slug with Article + FAQ schemas.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setGuideFormError(null);
+                  setEditingGuide(emptyGuide(selectedLang));
+                }}
+                className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-xs sm:text-sm font-bold text-slate-900 shadow-md hover:bg-white transition-all cursor-pointer"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Guide</span>
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+              <table className="w-full min-w-[720px] text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-800 text-[10px] uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3">Target Keyword</th>
+                    <th className="px-4 py-3">Slug</th>
+                    <th className="px-4 py-3">Title</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {guides.map((guide) => (
+                    <tr key={guide.id} className="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30">
+                      <td className="px-4 py-3 text-slate-200 font-semibold">{guide.keyword || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-cyan-300">/blog/{guide.slug}</td>
+                      <td className="px-4 py-3 text-slate-400 max-w-[260px] truncate" title={guide.title}>
+                        {guide.title}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleToggleGuide(guide.id)}
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold cursor-pointer ${
+                            guide.enabled ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/60 text-slate-400'
+                          }`}
+                        >
+                          {guide.enabled ? 'LIVE' : 'HIDDEN'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <a
+                            href={`/blog/${guide.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-cyan-300 transition-colors"
+                            title="Open live article"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                          <button
+                            onClick={() => {
+                              setGuideFormError(null);
+                              setEditingGuide({
+                                ...guide,
+                                sections: guide.sections.length > 0 ? guide.sections.map((s) => ({ ...s })) : [{ heading: '', body: '' }],
+                                faqs: guide.faqs.length > 0 ? guide.faqs.map((f) => ({ ...f })) : [{ question: '', answer: '' }],
+                              });
+                            }}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+                            title="Edit guide"
+                          >
+                            <FileEdit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteGuide(guide.id)}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300 transition-colors cursor-pointer"
+                            title="Delete guide"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {guides.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                        No guides yet. Click "Add Guide" to publish your first SEO article.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {editingGuide && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-xs">
+                <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-7 shadow-2xl">
+                  <h3 className="text-base font-bold text-white">
+                    {guides.some((g) => g.id === editingGuide.id) ? 'Edit Guide' : 'Add Guide'}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Live URL preview:{' '}
+                    <span className="font-mono text-cyan-300">/blog/{sanitizeGuideSlug(editingGuide.slug) || 'your-slug'}</span>
+                  </p>
+                  {guideFormError && (
+                    <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+                      {guideFormError}
+                    </div>
+                  )}
+
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Slug (URL)</label>
+                      <input
+                        type="text"
+                        value={editingGuide.slug}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, slug: e.target.value })}
+                        placeholder="download-reels-on-iphone"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Target Keyword *</label>
+                      <input
+                        type="text"
+                        value={editingGuide.keyword}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, keyword: e.target.value })}
+                        placeholder="download reels on iPhone"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Language</label>
+                      <select
+                        value={editingGuide.lang}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, lang: e.target.value as LanguageCode })}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      >
+                        {SUPPORTED_LANGUAGES.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.flag} {l.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Related Tool</label>
+                      <select
+                        value={editingGuide.tool}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, tool: e.target.value as MediaType })}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      >
+                        <option value="video">Video</option>
+                        <option value="photo">Photo</option>
+                        <option value="reels">Reels</option>
+                        <option value="story">Story</option>
+                        <option value="highlights">Highlights</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Page Title (&lt;title&gt;) *</label>
+                      <input
+                        type="text"
+                        value={editingGuide.title}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, title: e.target.value })}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Meta Description</label>
+                      <textarea
+                        rows={2}
+                        value={editingGuide.metaDescription}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, metaDescription: e.target.value })}
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-xs text-white"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">H1 Heading *</label>
+                        <input
+                          type="text"
+                          value={editingGuide.h1}
+                          onChange={(e) => setEditingGuide({ ...editingGuide, h1: e.target.value })}
+                          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-300 mb-1">Excerpt (hub card)</label>
+                        <input
+                          type="text"
+                          value={editingGuide.excerpt}
+                          onChange={(e) => setEditingGuide({ ...editingGuide, excerpt: e.target.value })}
+                          className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-slate-300">Sections</label>
+                        <button
+                          onClick={() => setEditingGuide({ ...editingGuide, sections: [...editingGuide.sections, { heading: '', body: '' }] })}
+                          className="flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add section
+                        </button>
+                      </div>
+                      {editingGuide.sections.map((s, idx) => (
+                        <div key={idx} className="mb-2 rounded-xl border border-slate-800 p-2.5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={s.heading}
+                              onChange={(e) => {
+                                const sections = editingGuide.sections.map((x, i) => (i === idx ? { ...x, heading: e.target.value } : x));
+                                setEditingGuide({ ...editingGuide, sections });
+                              }}
+                              placeholder={`Section ${idx + 1} heading`}
+                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
+                            />
+                            <button
+                              onClick={() => setEditingGuide({ ...editingGuide, sections: editingGuide.sections.filter((_, i) => i !== idx) })}
+                              className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/20 hover:text-rose-300 cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <textarea
+                            rows={3}
+                            value={s.body}
+                            onChange={(e) => {
+                              const sections = editingGuide.sections.map((x, i) => (i === idx ? { ...x, body: e.target.value } : x));
+                              setEditingGuide({ ...editingGuide, sections });
+                            }}
+                            placeholder="Section body…"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-xs font-semibold text-slate-300">FAQs</label>
+                        <button
+                          onClick={() => setEditingGuide({ ...editingGuide, faqs: [...editingGuide.faqs, { question: '', answer: '' }] })}
+                          className="flex items-center gap-1 rounded-lg border border-slate-700 px-2 py-1 text-[11px] font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                        >
+                          <Plus className="h-3 w-3" /> Add FAQ
+                        </button>
+                      </div>
+                      {editingGuide.faqs.map((f, idx) => (
+                        <div key={idx} className="mb-2 rounded-xl border border-slate-800 p-2.5 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={f.question}
+                              onChange={(e) => {
+                                const faqs = editingGuide.faqs.map((x, i) => (i === idx ? { ...x, question: e.target.value } : x));
+                                setEditingGuide({ ...editingGuide, faqs });
+                              }}
+                              placeholder="Question…"
+                              className="flex-1 rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-1.5 text-xs text-white"
+                            />
+                            <button
+                              onClick={() => setEditingGuide({ ...editingGuide, faqs: editingGuide.faqs.filter((_, i) => i !== idx) })}
+                              className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/20 hover:text-rose-300 cursor-pointer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={f.answer}
+                            onChange={(e) => {
+                              const faqs = editingGuide.faqs.map((x, i) => (i === idx ? { ...x, answer: e.target.value } : x));
+                              setEditingGuide({ ...editingGuide, faqs });
+                            }}
+                            placeholder="Answer…"
+                            className="w-full rounded-lg border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-300 mb-1">Related guide slugs (comma separated)</label>
+                      <input
+                        type="text"
+                        value={(editingGuide.relatedSlugs || []).join(', ')}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, relatedSlugs: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+                        placeholder="other-guide-slug, another-one"
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white font-mono"
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editingGuide.enabled}
+                        onChange={(e) => setEditingGuide({ ...editingGuide, enabled: e.target.checked })}
+                        className="h-4 w-4 accent-rose-500"
+                      />
+                      <span>Publish live (visible to visitors & search engines)</span>
+                    </label>
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setEditingGuide(null)}
+                      className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveGuide}
+                      className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 px-5 py-2 text-xs font-bold text-white hover:brightness-105 transition-all cursor-pointer"
+                    >
+                      <Check className="h-4 w-4" />
+                      <span>Publish Guide</span>
                     </button>
                   </div>
                 </div>

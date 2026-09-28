@@ -20,6 +20,7 @@ interface FooterProps {
   onOpenLegal: (type: 'terms' | 'privacy' | 'disclaimer') => void;
   onOpenSitemap: () => void;
   onOpenAdmin: () => void;
+  onOpenBlog?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -31,6 +32,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenLegal,
   onOpenSitemap,
   onOpenAdmin,
+  onOpenBlog,
 }) => {
   const siteName = branding?.siteName || 'IGSaveGo';
   const siteTagline = branding?.siteTagline || 'Fast & HD Media Saver';
@@ -203,6 +205,18 @@ export const Footer: React.FC<FooterProps> = ({
                   <span>{t.sitemap} (SEO Engine)</span>
                 </button>
               </li>
+              {onOpenBlog && (
+                <li>
+                  <button
+                    id="btn-open-blog"
+                    onClick={onOpenBlog}
+                    className="flex items-center gap-1.5 hover:text-rose-600 transition-colors"
+                  >
+                    <FileText className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{currentLanguage === 'ar' ? 'المدونة وشروحات التحميل' : 'Blog & Download Guides'}</span>
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         </div>

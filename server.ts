@@ -5,10 +5,13 @@ import crypto from 'crypto';
 // production bundle (dist/server.cjs) has zero dev-dependency requires
 // and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
 import {
+  deleteGuide,
   deleteKeywordPage,
   getSupabaseLastError,
   isSupabaseConfigured,
+  listGuides,
   listKeywordPages,
+  upsertGuide,
   upsertKeywordPage,
 } from './lib/supabaseAdmin';
 
@@ -1508,6 +1511,80 @@ app.delete('/api/keyword-pages', async (req: Request, res: Response) => {
   }
   const ok = await deleteKeywordPage(id);
   if (!ok) return res.status(500).json({ error: 'Failed to delete keyword page.' });
+  return res.json({ success: true });
+});
+
+// 4c. Guides API (Supabase-backed blog engine — public to all visitors)
+app.get('/api/guides', async (req: Request, res: Response) => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({ error: 'Guides database not configured.', supabase: false });
+    }
+    const all = req.query.all === '1';
+    if (all) {
+      const auth = verifyAdminToken(req.headers.authorization);
+      if (!auth.valid) return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const guides = await listGuides(!all);
+    if (!guides) {
+      const detail = getSupabaseLastError();
+      return res.status(500).json({ error: 'Failed to load guides.', detail });
+    }
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.json({ guides });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Guides API error.' });
+  }
+});
+
+app.post('/api/guides', async (req: Request, res: Response) => {
+  const auth = verifyAdminToken(req.headers.authorization);
+  if (!auth.valid) return res.status(401).json({ error: 'Unauthorized' });
+  if (!isSupabaseConfigured()) {
+    return res.status(503).json({ error: 'Guides database not configured.', supabase: false });
+  }
+  const body = req.body || {};
+  const str = (v: any, max: number): string =>
+    typeof v === 'string' ? v.substring(0, max) : '';
+  const arr = (v: any, max: number): any[] => (Array.isArray(v) ? v.slice(0, max) : []);
+  const guide = {
+    id: str(body.id, 80),
+    slug: str(body.slug, 160),
+    lang: ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'].includes(body.lang) ? body.lang : 'en',
+    keyword: str(body.keyword, 200),
+    tool: ['video', 'photo', 'reels', 'story', 'highlights'].includes(body.tool) ? body.tool : 'video',
+    title: str(body.title, 200),
+    metaDescription: str(body.metaDescription, 400),
+    h1: str(body.h1, 200),
+    excerpt: str(body.excerpt, 400),
+    sections: arr(body.sections, 20),
+    faqs: arr(body.faqs, 20),
+    relatedSlugs: arr(body.relatedSlugs, 10).filter((s: any) => typeof s === 'string'),
+    enabled: body.enabled !== false,
+  };
+  if (!guide.id || !guide.slug || !guide.title || !guide.h1) {
+    return res.status(400).json({ error: 'id, slug, title and h1 are required.' });
+  }
+  const ok = await upsertGuide(guide);
+  if (!ok) {
+    const detail = getSupabaseLastError();
+    return res.status(500).json({ error: 'Failed to save guide.', detail });
+  }
+  return res.json({ success: true });
+});
+
+app.delete('/api/guides', async (req: Request, res: Response) => {
+  const auth = verifyAdminToken(req.headers.authorization);
+  if (!auth.valid) return res.status(401).json({ error: 'Unauthorized' });
+  if (!isSupabaseConfigured()) {
+    return res.status(503).json({ error: 'Guides database not configured.', supabase: false });
+  }
+  const id = req.query.id as string;
+  if (!id || typeof id !== 'string' || id.length > 80) {
+    return res.status(400).json({ error: 'Valid id is required.' });
+  }
+  const ok = await deleteGuide(id);
+  if (!ok) return res.status(500).json({ error: 'Failed to delete guide.' });
   return res.json({ success: true });
 });
 
