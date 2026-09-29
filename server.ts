@@ -8,12 +8,14 @@ import { buildSitemapXml } from './lib/sitemapBuilder';
 import {
   deleteGuide,
   deleteKeywordPage,
+  getSiteSettings,
   getSupabaseLastError,
   isSupabaseConfigured,
   listGuides,
   listKeywordPages,
   upsertGuide,
   upsertKeywordPage,
+  upsertSiteSettings,
 } from './lib/supabaseAdmin';
 
 const app = express();
@@ -1619,6 +1621,165 @@ app.delete('/api/guides', async (req: Request, res: Response) => {
   if (!ok) return res.status(500).json({ error: 'Failed to delete guide.' });
   return res.json({ success: true });
 });
+
+// 4d. Shared Dashboard Settings API (Supabase singleton — same for every browser)
+// GET  /api/site-settings          -> public read (visitors + admin need GA4/branding/ads)
+// PUT  /api/site-settings          -> admin Bearer required (partial merge supported)
+// POST /api/site-settings          -> alias of PUT (admin Bearer required)
+app.get('/api/site-settings', async (req: Request, res: Response) => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return res.status(503).json({ error: 'Settings database not configured.', supabase: false });
+    }
+    const settings = await getSiteSettings();
+    if (!settings) {
+      const detail = getSupabaseLastError();
+      return res.status(500).json({ error: 'Failed to load site settings.', detail });
+    }
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    return res.json({ settings });
+  } catch (e: any) {
+    return res.status(500).json({ error: e?.message || 'Settings API error.' });
+  }
+});
+
+async function handleSiteSettingsWrite(req: Request, res: Response) {
+  const auth = verifyAdminToken(req.headers.authorization);
+  if (!auth.valid) return res.status(401).json({ error: 'Unauthorized' });
+  if (!isSupabaseConfigured()) {
+    return res.status(503).json({ error: 'Settings database not configured.', supabase: false });
+  }
+  const body = req.body || {};
+  // Strict allowlist + length caps (admin-only, but never trust input).
+  const str = (v: any, max: number): string =>
+    typeof v === 'string' ? v.substring(0, max) : '';
+  const num = (v: any, fallback: number, min: number, max: number): number => {
+    const n = Number(v);
+    if (!isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  };
+  const bool = (v: any, fallback: boolean): boolean =>
+    typeof v === 'boolean' ? v : fallback;
+  const strArr = (v: any, maxItems: number, maxLen: number): string[] =>
+    Array.isArray(v)
+      ? v.filter((s) => typeof s === 'string').map((s: string) => s.substring(0, maxLen)).slice(0, maxItems)
+      : [];
+
+  const cleanAdSlot = (v: any): Record<string, any> | undefined => {
+    if (!v || typeof v !== 'object') return undefined;
+    return {
+      enabled: bool(v.enabled, false),
+      type: ['banner', 'native', 'script', 'adsense'].includes(v.type) ? v.type : 'banner',
+      title: str(v.title, 120),
+      adClient: str(v.adClient, 60),
+      adSlot: str(v.adSlot, 40),
+      customHtml: str(v.customHtml, 20000),
+    };
+  };
+
+  const partial: Record<string, any> = {};
+  if (body.branding && typeof body.branding === 'object') {
+    const b = body.branding;
+    partial.branding = {
+      siteName: str(b.siteName, 80),
+      siteTagline: str(b.siteTagline, 160),
+      logoType: ['default', 'image', 'text'].includes(b.logoType) ? b.logoType : 'default',
+      customLogoUrl: str(b.customLogoUrl, 500),
+      faviconUrl: str(b.faviconUrl, 500),
+      accentColor: str(b.accentColor, 20),
+      contactEmail: str(b.contactEmail, 120),
+      copyrightText: str(b.copyrightText, 300),
+    };
+  }
+  if (body.seoTracking && typeof body.seoTracking === 'object') {
+    const s = body.seoTracking;
+    partial.seoTracking = {
+      googleAnalyticsId: str(s.googleAnalyticsId, 30),
+      googleSearchConsoleCode: str(s.googleSearchConsoleCode, 2000),
+      bingWebmasterCode: str(s.bingWebmasterCode, 2000),
+      facebookPixelId: str(s.facebookPixelId, 40),
+      customHeadCode: str(s.customHeadCode, 20000),
+      customBodyCode: str(s.customBodyCode, 20000),
+      enableRobotsIndex: bool(s.enableRobotsIndex, true),
+      canonicalBaseUrl: str(s.canonicalBaseUrl, 200),
+    };
+  }
+  if (body.ads && typeof body.ads === 'object') {
+    const a = body.ads;
+    const cleaned: Record<string, any> = {
+      autoAdsEnabled: bool(a.autoAdsEnabled, false),
+      autoAdsClientId: str(a.autoAdsClientId, 60),
+      customPopunderCode: str(a.customPopunderCode, 20000),
+    };
+    for (const slot of ['headerBanner', 'belowInput', 'aboveResult', 'inContentBanner', 'footerBanner', 'stickyFooterBanner']) {
+      const c = cleanAdSlot(a[slot]);
+      if (c) cleaned[slot] = c;
+    }
+    partial.ads = cleaned;
+  }
+  if (body.api && typeof body.api === 'object') {
+    const p = body.api;
+    partial.api = {
+      primaryEndpoint: str(p.primaryEndpoint, 200),
+      backupEndpoint: str(p.backupEndpoint, 200),
+      rapidApiKey: str(p.rapidApiKey, 200),
+      timeoutMs: num(p.timeoutMs, 15000, 1000, 60000),
+      rateLimitPerMin: num(p.rateLimitPerMin, 50, 1, 1000),
+      enableRotatingProxies: bool(p.enableRotatingProxies, false),
+      proxyPool: strArr(p.proxyPool, 20, 300),
+    };
+  }
+  if (body.seoOverrides && typeof body.seoOverrides === 'object') {
+    // Cap: max 120 keys, each entry sanitized to known ToolSeoContent fields.
+    const entries = Object.entries(body.seoOverrides).slice(0, 120);
+    const cleaned: Record<string, any> = {};
+    for (const [k, v] of entries) {
+      if (typeof k !== 'string' || k.length > 80 || !v || typeof v !== 'object') continue;
+      const c: any = v;
+      cleaned[k.substring(0, 80)] = {
+        title: str(c.title, 200),
+        metaDescription: str(c.metaDescription, 400),
+        h1: str(c.h1, 200),
+        subtitle: str(c.subtitle, 300),
+        badge: str(c.badge, 60),
+        canonicalPath: str(c.canonicalPath, 200),
+        features: Array.isArray(c.features)
+          ? c.features.slice(0, 12).map((f: any) => ({
+              title: str(f?.title, 120),
+              description: str(f?.description, 400),
+              icon: str(f?.icon, 40),
+            }))
+          : [],
+        steps: Array.isArray(c.steps)
+          ? c.steps.slice(0, 12).map((s: any, i: number) => ({
+              step: num(s?.step, i + 1, 1, 99),
+              title: str(s?.title, 120),
+              description: str(s?.description, 400),
+            }))
+          : [],
+        faqs: Array.isArray(c.faqs)
+          ? c.faqs.slice(0, 20).map((f: any) => ({
+              question: str(f?.question, 300),
+              answer: str(f?.answer, 2000),
+            }))
+          : [],
+      };
+    }
+    partial.seoOverrides = cleaned;
+  }
+  if (Object.keys(partial).length === 0) {
+    return res.status(400).json({ error: 'No valid settings provided.' });
+  }
+  const ok = await upsertSiteSettings(partial);
+  if (!ok) {
+    const detail = getSupabaseLastError();
+    return res.status(500).json({ error: 'Failed to save site settings.', detail });
+  }
+  return res.json({ success: true });
+}
+
+app.put('/api/site-settings', handleSiteSettingsWrite);
+app.post('/api/site-settings', handleSiteSettingsWrite);
 
 // 4. Vite middleware (development) or static files (production)
 async function startServer() {

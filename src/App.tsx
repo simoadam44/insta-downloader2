@@ -28,6 +28,7 @@ import { findGuide, guidesByLang, refreshGuides } from './data/guides';
 import { applySeoAndTrackingScripts, updateBlogHubSeo, updateDocumentSeo, updateGuideSeo, updateKeywordPageSeo } from './services/seoEngine';
 import { BlogHub, ArticlePage } from './components/Blog';
 import { extractInstagramMedia } from './services/extractorService';
+import { fetchSharedSettings, pushSharedSettings } from './services/siteSettings';
 
 const DEFAULT_BRANDING_SETTINGS: SiteBrandingSettings = {
   siteName: 'IGSaveGo',
@@ -240,6 +241,63 @@ export default function App() {
     }
   });
 
+  // Shared dashboard settings (Supabase singleton) — the server is the source
+  // of truth so GA4/branding/ads/api are identical in every browser and every
+  // private window. localStorage stays only as offline cache. Remote wins over
+  // cache when present; empty remote objects never wipe local values.
+  useEffect(() => {
+    fetchSharedSettings().then((remote) => {
+      if (!remote) return;
+      try {
+        if (remote.branding && Object.keys(remote.branding).length > 0) {
+          setBrandingSettings((prev) => {
+            const next = { ...DEFAULT_BRANDING_SETTINGS, ...remote.branding };
+            try {
+              localStorage.setItem('sss_branding_settings', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+        if (remote.seoTracking && Object.keys(remote.seoTracking).length > 0) {
+          setSeoTrackingSettings((prev) => {
+            const next = { ...DEFAULT_SEO_TRACKING, ...prev, ...remote.seoTracking };
+            try {
+              localStorage.setItem('sss_seo_tracking_settings', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+        if (remote.seoOverrides && Object.keys(remote.seoOverrides).length > 0) {
+          setSeoOverrides((prev) => {
+            const next = { ...prev, ...remote.seoOverrides };
+            try {
+              localStorage.setItem('sss_seo_overrides', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+        if (remote.ads && Object.keys(remote.ads).length > 0) {
+          setAdSettings((prev) => {
+            const next = { ...DEFAULT_AD_SETTINGS, ...prev, ...remote.ads };
+            try {
+              localStorage.setItem('sss_ad_settings', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+        if (remote.api && Object.keys(remote.api).length > 0) {
+          setApiSettings((prev) => {
+            const next = { ...DEFAULT_API_SETTINGS, ...prev, ...remote.api };
+            try {
+              localStorage.setItem('sss_api_settings', JSON.stringify(next));
+            } catch {}
+            return next;
+          });
+        }
+      } catch {}
+    });
+  }, []);
+
   // Media Extraction State
   const [extractedMedia, setExtractedMedia] = useState<ExtractedMedia | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -434,7 +492,14 @@ export default function App() {
     const key = `${tool}_${lang}`;
     const updated = { ...seoOverrides, [key]: content };
     setSeoOverrides(updated);
-    localStorage.setItem('sss_seo_overrides', JSON.stringify(updated));
+    try {
+      localStorage.setItem('sss_seo_overrides', JSON.stringify(updated));
+    } catch {}
+    // Shared persist (fire-and-forget): AdminDashboard's content editor only
+    // holds one entry, while the full map lives here.
+    try {
+      void pushSharedSettings({ seoOverrides: { [key]: content } });
+    } catch {}
     if (tool === activeTool && lang === currentLanguage) {
       updateDocumentSeo(lang, tool, content, brandingSettings);
     }

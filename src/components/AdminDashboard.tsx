@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShieldCheck,
   BarChart3,
@@ -67,6 +67,7 @@ import {
 } from '../data/guides';
 import { getApiBaseUrl } from '../services/extractorService';
 import { generateDynamicSitemapXml } from '../services/seoEngine';
+import { pushSharedSettings } from '../services/siteSettings';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -123,6 +124,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [localApi, setLocalApi] = useState<ApiSettings>(apiSettings);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+
+  // Shared settings may arrive asynchronously (App fetches the Supabase
+  // singleton on mount). Keep the forms in sync so a private window shows the
+  // real GA4 value instead of an empty default — BUT never wipe the user's
+  // unsaved edits (checkbox toggles included) when the remote arrives late.
+  // Rule: only overwrite a form when it still equals the last-synced props
+  // (i.e. the user hasn't touched it since).
+  const lastSyncedBranding = useRef<string>(JSON.stringify(brandingSettings));
+  const lastSyncedSeoTracking = useRef<string>(JSON.stringify(seoTrackingSettings));
+  const lastSyncedAds = useRef<string>(JSON.stringify(adSettings));
+  const lastSyncedApi = useRef<string>(JSON.stringify(apiSettings));
+  useEffect(() => {
+    const incoming = JSON.stringify(brandingSettings);
+    if (JSON.stringify(localBranding) === lastSyncedBranding.current && incoming !== lastSyncedBranding.current) {
+      setLocalBranding(brandingSettings);
+    }
+    lastSyncedBranding.current = incoming;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brandingSettings]);
+  useEffect(() => {
+    const incoming = JSON.stringify(seoTrackingSettings);
+    if (JSON.stringify(localSeoTracking) === lastSyncedSeoTracking.current && incoming !== lastSyncedSeoTracking.current) {
+      setLocalSeoTracking(seoTrackingSettings);
+    }
+    lastSyncedSeoTracking.current = incoming;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seoTrackingSettings]);
+  useEffect(() => {
+    const incoming = JSON.stringify(adSettings);
+    if (JSON.stringify(localAds) === lastSyncedAds.current && incoming !== lastSyncedAds.current) {
+      setLocalAds(adSettings);
+    }
+    lastSyncedAds.current = incoming;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adSettings]);
+  useEffect(() => {
+    const incoming = JSON.stringify(apiSettings);
+    if (JSON.stringify(localApi) === lastSyncedApi.current && incoming !== lastSyncedApi.current) {
+      setLocalApi(apiSettings);
+    }
+    lastSyncedApi.current = incoming;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiSettings]);
 
   // Verify existing session on mount
   useEffect(() => {
@@ -287,34 +331,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // Save Handlers
-  const handleSaveBranding = () => {
+  const flashNotice = (msg: string) => {
+    setSaveNotice(msg);
+    setTimeout(() => setSaveNotice(null), 4000);
+  };
+
+  const sharedResultNotice = (okMsg: string, result: string): string => {
+    if (result === 'ok') return `${okMsg} Synced to all browsers & devices.`;
+    if (result === 'no-db') return `${okMsg} (Saved in this browser only — shared database not configured. Run supabase/site_settings.sql)`;
+    if (result === 'unauthorized') return 'Saved in this browser only — admin session expired. Please log in again to sync.';
+    return `${okMsg} (Shared sync failed — saved in this browser only. Check connection and retry.)`;
+  };
+
+  const handleSaveBranding = async () => {
     onUpdateBrandingSettings(localBranding);
-    setSaveNotice('Brand identity and logo successfully published across the site!');
-    setTimeout(() => setSaveNotice(null), 3000);
+    const result = await pushSharedSettings({ branding: localBranding });
+    flashNotice(sharedResultNotice('Brand identity and logo successfully published across the site!', result));
   };
 
-  const handleSaveSeoTracking = () => {
+  const handleSaveSeoTracking = async () => {
     onUpdateSeoTrackingSettings(localSeoTracking);
-    setSaveNotice('SEO & Webmaster tracking tags deployed successfully!');
-    setTimeout(() => setSaveNotice(null), 3000);
+    const result = await pushSharedSettings({ seoTracking: localSeoTracking });
+    flashNotice(sharedResultNotice('SEO & Webmaster tracking tags deployed successfully!', result));
   };
 
-  const handleSaveAds = () => {
+  const handleSaveAds = async () => {
     onUpdateAdSettings(localAds);
-    setSaveNotice('Ad placements and AdSense settings updated!');
-    setTimeout(() => setSaveNotice(null), 3000);
+    const result = await pushSharedSettings({ ads: localAds });
+    flashNotice(sharedResultNotice('Ad placements and AdSense settings updated!', result));
   };
 
   const handleSaveSeo = () => {
     onUpdateSeoContent(selectedTool, selectedLang, editSeo);
-    setSaveNotice('Tool content and SEO strings published!');
-    setTimeout(() => setSaveNotice(null), 3000);
+    flashNotice('Tool content and SEO strings published! Syncing to shared database in the background.');
   };
 
-  const handleSaveApi = () => {
+  const handleSaveApi = async () => {
     onUpdateApiSettings(localApi);
-    setSaveNotice('Backend API and proxy settings saved!');
-    setTimeout(() => setSaveNotice(null), 3000);
+    const result = await pushSharedSettings({ api: localApi });
+    flashNotice(sharedResultNotice('Backend API and proxy settings saved!', result));
   };
 
   // Keywords & Tools Engine State (programmatic SEO landing pages)

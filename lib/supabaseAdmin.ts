@@ -193,3 +193,78 @@ export async function deleteGuide(id: string): Promise<boolean> {
     return false;
   }
 }
+
+// ---------- Shared dashboard settings (singleton row id='global') ----------
+// Persists ALL admin settings server-side so every browser / private window
+// / device sees the same GA4, branding, ads, api and SEO overrides.
+// Previously these lived in localStorage only (per-browser).
+
+export interface SharedSiteSettings {
+  branding: Record<string, any>;
+  seoTracking: Record<string, any>;
+  ads: Record<string, any>;
+  api: Record<string, any>;
+  seoOverrides: Record<string, any>;
+}
+
+export async function getSiteSettings(): Promise<SharedSiteSettings | null> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return null;
+  try {
+    const { data, error } = await sb
+      .from('site_settings')
+      .select('branding, seo_tracking, ads, api, seo_overrides')
+      .eq('id', 'global')
+      .maybeSingle();
+    if (error || !data) {
+      lastError = error ? `${error.code || 'ERR'}: ${error.message}`.substring(0, 200) : 'empty';
+      return null;
+    }
+    lastError = null;
+    return {
+      branding: (data.branding && typeof data.branding === 'object' ? data.branding : {}) as Record<string, any>,
+      seoTracking: (data.seo_tracking && typeof data.seo_tracking === 'object' ? data.seo_tracking : {}) as Record<string, any>,
+      ads: (data.ads && typeof data.ads === 'object' ? data.ads : {}) as Record<string, any>,
+      api: (data.api && typeof data.api === 'object' ? data.api : {}) as Record<string, any>,
+      seoOverrides: (data.seo_overrides && typeof data.seo_overrides === 'object' ? data.seo_overrides : {}) as Record<string, any>,
+    };
+  } catch (e: any) {
+    lastError = String(e?.message || e).substring(0, 200);
+    return null;
+  }
+}
+
+// Partial upsert: only provided slices are merged over the stored row,
+// so the client can send e.g. { seoTracking } without stale-overwriting
+// branding/ads written from another tab.
+export async function upsertSiteSettings(input: Partial<SharedSiteSettings>): Promise<boolean> {
+  const sb = getSupabaseAdmin();
+  if (!sb) return false;
+  try {
+    const current = await getSiteSettings();
+    const row: Record<string, any> = { id: 'global' };
+    if (input.branding !== undefined) {
+      row.branding = { ...(current?.branding || {}), ...input.branding };
+    }
+    if (input.seoTracking !== undefined) {
+      row.seo_tracking = { ...(current?.seoTracking || {}), ...input.seoTracking };
+    }
+    if (input.ads !== undefined) {
+      row.ads = { ...(current?.ads || {}), ...input.ads };
+    }
+    if (input.api !== undefined) {
+      row.api = { ...(current?.api || {}), ...input.api };
+    }
+    if (input.seoOverrides !== undefined) {
+      row.seo_overrides = { ...(current?.seoOverrides || {}), ...input.seoOverrides };
+    }
+    const { error } = await sb.from('site_settings').upsert(row, { onConflict: 'id' });
+    if (error) {
+      lastError = `${error.code || 'ERR'}: ${error.message}`.substring(0, 200);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
