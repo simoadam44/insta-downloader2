@@ -36,10 +36,13 @@ function getAdminToken(): string {
 
 // Public read — used on app mount (visitors + admin). Returns null when the
 // DB is not configured or the fetch fails (caller falls back to local cache).
+// `cache: no-store` forces a fresh read in THIS browser; edge caching is kept
+// short server-side (s-maxage=30) so other browsers see saves within seconds.
 export async function fetchSharedSettings(): Promise<SharedSettingsPayload | null> {
   try {
     const res = await fetch(`${getApiBase()}/api/site-settings`, {
       headers: { Accept: 'application/json' },
+      cache: 'no-store',
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -60,10 +63,22 @@ export async function fetchSharedSettings(): Promise<SharedSettingsPayload | nul
 
 // Admin write — partial merge supported, e.g. { seoTracking } only.
 // Never throws; callers switch on the result to show accurate save notices.
-export async function pushSharedSettings(payload: SharedSettingsPayload): Promise<PushResult> {
+// NOTE: success requires the server's explicit `{ success: true }` — a bare
+// HTTP 200 (SPA fallback page, proxy, stale cache) must NEVER count as saved.
+export interface PushOutcome {
+  result: PushResult;
+  // Safe server detail (Supabase code/message only, never keys) for `no-db`
+  // and `error` cases — shown in the admin notice to pinpoint the layer.
+  detail?: string;
+}
+
+export async function pushSharedSettingsDetailed(payload: SharedSettingsPayload): Promise<PushOutcome> {
   try {
     const token = getAdminToken();
-    if (!token) return 'unauthorized';
+    if (!token) return { result: 'unauthorized' };
+    // Fallback/offline tokens never hold server privileges — fail fast with a
+    // clear signal instead of letting the server 401 speak vaguely.
+    if (token.startsWith('fallback_admin_token_')) return { result: 'unauthorized', detail: 'offline-mode token' };
     const res = await fetch(`${getApiBase()}/api/site-settings`, {
       method: 'PUT',
       headers: {
@@ -73,12 +88,43 @@ export async function pushSharedSettings(payload: SharedSettingsPayload): Promis
       },
       body: JSON.stringify(payload),
     });
-    if (res.ok) return 'ok';
-    if (res.status === 401) return 'unauthorized';
     const data = await res.json().catch(() => null);
-    if (res.status === 503 || data?.supabase === false) return 'no-db';
-    return 'error';
+    if (res.ok && data && data.success === true) return { result: 'ok' };
+    if (res.status === 401) return { result: 'unauthorized', detail: typeof data?.error === 'string' ? data.error.substring(0, 120) : undefined };
+    if (res.status === 503 || data?.supabase === false) {
+      return {
+        result: 'no-db',
+        detail: typeof data?.error === 'string' ? `${data.error.substring(0, 120)}${data?.detail ? ` (${String(data.detail).substring(0, 120)})` : ''}` : undefined,
+      };
+    }
+    return {
+      result: 'error',
+      detail: typeof data?.error === 'string' ? `${data.error.substring(0, 120)}${data?.detail ? ` (${String(data.detail).substring(0, 120)})` : ''}` : `HTTP ${res.status}`,
+    };
   } catch {
-    return 'error';
+    return { result: 'error', detail: 'network unreachable' };
+  }
+}
+
+export async function pushSharedSettings(payload: SharedSettingsPayload): Promise<PushResult> {
+  return (await pushSharedSettingsDetailed(payload)).result;
+}
+
+// Connectivity probe for the admin status badge — public GET, no auth needed.
+// Distinguishes "DB not configured" (env/table) from "unreachable" (network).
+export type SharedDbStatus = 'checking' | 'connected' | 'no-db' | 'unreachable';
+
+export async function getSharedDbStatus(): Promise<Exclude<SharedDbStatus, 'checking'>> {
+  try {
+    const res = await fetch(`${getApiBase()}/api/site-settings`, {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data && typeof data.settings === 'object' && data.settings) return 'connected';
+    if (res.status === 503 || data?.supabase === false) return 'no-db';
+    return 'unreachable';
+  } catch {
+    return 'unreachable';
   }
 }

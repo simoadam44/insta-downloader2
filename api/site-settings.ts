@@ -220,13 +220,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      // Short edge cache on purpose: admin saves must be visible in other
+      // browsers within seconds, not minutes. Payload is tiny JSON.
+      res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
       const { data, error } = await sb
         .from('site_settings')
         .select('branding, seo_tracking, ads, api, seo_overrides')
         .eq('id', 'global')
         .maybeSingle();
-      if (error || !data) return res.status(500).json({ error: 'Failed to load site settings.' });
+      if (error || !data) {
+        // Safe detail only (PostgREST code/message — never keys). A missing
+        // table surfaces here as e.g. "42P01: relation ... does not exist".
+        const detail = error ? `${error.code || 'ERR'}: ${String(error.message || '').substring(0, 160)}` : 'empty row';
+        return res.status(500).json({ error: 'Failed to load site settings.', detail });
+      }
       return res.status(200).json({
         settings: {
           branding: data.branding && typeof data.branding === 'object' ? data.branding : {},
@@ -258,7 +265,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (partial.api !== undefined) row.api = { ...(current?.api || {}), ...partial.api };
       if (partial.seoOverrides !== undefined) row.seo_overrides = { ...(current?.seo_overrides || {}), ...partial.seoOverrides };
       const { error } = await sb.from('site_settings').upsert(row, { onConflict: 'id' });
-      if (error) return res.status(500).json({ error: 'Failed to save site settings.' });
+      if (error) {
+        // Safe detail only (never keys). RLS denial (wrong key type, e.g.
+        // anon instead of service_role) surfaces here as code 42501.
+        const detail = `${error.code || 'ERR'}: ${String(error.message || '').substring(0, 160)}`;
+        return res.status(500).json({ error: 'Failed to save site settings.', detail });
+      }
       return res.status(200).json({ success: true });
     }
 

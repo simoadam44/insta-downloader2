@@ -67,7 +67,7 @@ import {
 } from '../data/guides';
 import { getApiBaseUrl } from '../services/extractorService';
 import { generateDynamicSitemapXml } from '../services/seoEngine';
-import { pushSharedSettings } from '../services/siteSettings';
+import { getSharedDbStatus, pushSharedSettingsDetailed, SharedDbStatus, PushOutcome } from '../services/siteSettings';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -336,29 +336,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setTimeout(() => setSaveNotice(null), 4000);
   };
 
-  const sharedResultNotice = (okMsg: string, result: string): string => {
-    if (result === 'ok') return `${okMsg} Synced to all browsers & devices.`;
-    if (result === 'no-db') return `${okMsg} (Saved in this browser only — shared database not configured. Run supabase/site_settings.sql)`;
-    if (result === 'unauthorized') return 'Saved in this browser only — admin session expired. Please log in again to sync.';
-    return `${okMsg} (Shared sync failed — saved in this browser only. Check connection and retry.)`;
+  // Shared-DB connectivity badge — public GET probe, no auth needed.
+  // Shows at a glance WHY saves stay local: not configured (env/table) vs
+  // unreachable (network) vs session problem (writes only).
+  const [sharedDb, setSharedDb] = useState<SharedDbStatus>('checking');
+  const refreshSharedDb = useCallback(async () => {
+    setSharedDb(await getSharedDbStatus());
+  }, []);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void refreshSharedDb();
+  }, [isAuthenticated, refreshSharedDb]);
+
+  const sharedResultNotice = (okMsg: string, outcome: PushOutcome): string => {
+    const withDetail = (base: string): string =>
+      outcome.detail ? `${base} [${outcome.detail}]` : base;
+    if (outcome.result === 'ok') return `${okMsg} Synced to all browsers & devices.`;
+    if (outcome.result === 'no-db')
+      return withDetail(`${okMsg} (Saved in this browser only — shared database not configured. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on the host and run supabase/site_settings.sql)`);
+    if (outcome.result === 'unauthorized')
+      return withDetail('Saved in this browser only — admin session is offline or expired. Log out and log in again with the server password to sync.');
+    return withDetail(`${okMsg} (Shared sync failed — saved in this browser only. Retry in a few seconds.)`);
   };
 
   const handleSaveBranding = async () => {
     onUpdateBrandingSettings(localBranding);
-    const result = await pushSharedSettings({ branding: localBranding });
-    flashNotice(sharedResultNotice('Brand identity and logo successfully published across the site!', result));
+    const outcome = await pushSharedSettingsDetailed({ branding: localBranding });
+    flashNotice(sharedResultNotice('Brand identity and logo successfully published across the site!', outcome));
+    void refreshSharedDb();
   };
 
   const handleSaveSeoTracking = async () => {
     onUpdateSeoTrackingSettings(localSeoTracking);
-    const result = await pushSharedSettings({ seoTracking: localSeoTracking });
-    flashNotice(sharedResultNotice('SEO & Webmaster tracking tags deployed successfully!', result));
+    const outcome = await pushSharedSettingsDetailed({ seoTracking: localSeoTracking });
+    flashNotice(sharedResultNotice('SEO & Webmaster tracking tags deployed successfully!', outcome));
+    void refreshSharedDb();
   };
 
   const handleSaveAds = async () => {
     onUpdateAdSettings(localAds);
-    const result = await pushSharedSettings({ ads: localAds });
-    flashNotice(sharedResultNotice('Ad placements and AdSense settings updated!', result));
+    const outcome = await pushSharedSettingsDetailed({ ads: localAds });
+    flashNotice(sharedResultNotice('Ad placements and AdSense settings updated!', outcome));
+    void refreshSharedDb();
   };
 
   const handleSaveSeo = () => {
@@ -368,8 +387,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSaveApi = async () => {
     onUpdateApiSettings(localApi);
-    const result = await pushSharedSettings({ api: localApi });
-    flashNotice(sharedResultNotice('Backend API and proxy settings saved!', result));
+    const outcome = await pushSharedSettingsDetailed({ api: localApi });
+    flashNotice(sharedResultNotice('Backend API and proxy settings saved!', outcome));
+    void refreshSharedDb();
   };
 
   // Keywords & Tools Engine State (programmatic SEO landing pages)
@@ -654,6 +674,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => void refreshSharedDb()}
+            title={
+              sharedDb === 'connected'
+                ? 'Shared database reachable — saves sync to all browsers & devices. Click to re-check.'
+                : sharedDb === 'no-db'
+                ? 'Shared database NOT configured — saves stay in this browser. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on the host and run supabase/site_settings.sql. Click to re-check.'
+                : sharedDb === 'unreachable'
+                ? 'Shared database unreachable — check network/deployment. Click to re-check.'
+                : 'Checking shared database…'
+            }
+            className={`hidden sm:flex items-center gap-1.5 rounded-lg border px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors ${
+              sharedDb === 'connected'
+                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                : sharedDb === 'no-db'
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
+                : sharedDb === 'unreachable'
+                ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+                : 'bg-slate-500/15 border-slate-600/40 text-slate-400'
+            }`}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                sharedDb === 'connected'
+                  ? 'bg-emerald-400'
+                  : sharedDb === 'no-db'
+                  ? 'bg-amber-400'
+                  : sharedDb === 'unreachable'
+                  ? 'bg-rose-400'
+                  : 'bg-slate-400 animate-pulse'
+              }`}
+            />
+            <span>
+              {sharedDb === 'connected'
+                ? 'Shared DB: Connected'
+                : sharedDb === 'no-db'
+                ? 'Shared DB: Not configured'
+                : sharedDb === 'unreachable'
+                ? 'Shared DB: Unreachable'
+                : 'Shared DB: Checking…'}
+            </span>
+          </button>
           {saveNotice && (
             <div className="hidden sm:flex items-center gap-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 px-3 py-1 text-xs font-medium text-emerald-300 animate-fade-in">
               <CheckCircle2 className="h-3.5 w-3.5" />
