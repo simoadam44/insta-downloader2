@@ -223,9 +223,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      // Short edge cache on purpose: admin saves must be visible in other
-      // browsers within seconds, not minutes. Payload is tiny JSON.
-      res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=60');
+      // Very short edge cache on purpose: admin saves must be visible in
+      // other browsers within seconds, not minutes. Payload is tiny JSON.
+      res.setHeader('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=30');
       const { data, error } = await sb
         .from('site_settings')
         .select('branding, seo_tracking, ads, api, seo_overrides')

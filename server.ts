@@ -1636,8 +1636,8 @@ app.get('/api/site-settings', async (req: Request, res: Response) => {
       const detail = getSupabaseLastError();
       return res.status(500).json({ error: 'Failed to load site settings.', detail });
     }
-    // Short cache on purpose: saves must be visible in other browsers fast.
-    res.setHeader('Cache-Control', 'public, max-age=30');
+    // Very short cache on purpose: saves must be visible in other browsers fast.
+    res.setHeader('Cache-Control', 'public, max-age=10');
     return res.json({ settings });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Settings API error.' });

@@ -245,9 +245,14 @@ export default function App() {
   // of truth so GA4/branding/ads/api are identical in every browser and every
   // private window. localStorage stays only as offline cache. Remote wins over
   // cache when present; empty remote objects never wipe local values.
+  // `sharedSettingsReady` flips true once the fetch settles (success or
+  // failure) so the admin UI can show "syncing" instead of stale defaults.
+  const [sharedSettingsReady, setSharedSettingsReady] = useState(false);
   useEffect(() => {
-    fetchSharedSettings().then((remote) => {
-      if (!remote) return;
+    let cancelled = false;
+    fetchSharedSettings()
+      .then((remote) => {
+      if (!remote || cancelled) return;
       try {
         if (remote.branding && Object.keys(remote.branding).length > 0) {
           setBrandingSettings((prev) => {
@@ -295,7 +300,13 @@ export default function App() {
           });
         }
       } catch {}
-    });
+      })
+      .finally(() => {
+        if (!cancelled) setSharedSettingsReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Media Extraction State
@@ -544,6 +555,7 @@ export default function App() {
         onUpdateSeoContent={handleUpdateSeoContent}
         currentLanguage={currentLanguage}
         activeTool={activeTool}
+        sharedReady={sharedSettingsReady}
       />
     );
   }

@@ -82,6 +82,9 @@ interface AdminDashboardProps {
   onUpdateSeoContent: (tool: MediaType, lang: LanguageCode, content: ToolSeoContent) => void;
   currentLanguage: LanguageCode;
   activeTool: MediaType;
+  // True once App's shared-settings fetch has settled (success or failure).
+  // While false, form values may still be stale defaults being synced.
+  sharedReady: boolean;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -95,6 +98,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   apiSettings,
   onUpdateApiSettings,
   onUpdateSeoContent,
+  sharedReady,
 }) => {
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -347,6 +351,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!isAuthenticated) return;
     void refreshSharedDb();
   }, [isAuthenticated, refreshSharedDb]);
+  // Re-probe once App's shared fetch settles — values on screen are final then.
+  useEffect(() => {
+    if (!isAuthenticated || !sharedReady) return;
+    void refreshSharedDb();
+  }, [isAuthenticated, sharedReady, refreshSharedDb]);
+  // While the shared fetch is in flight, form values may still be stale
+  // defaults — force the badge into its "syncing" look so nobody mistakes
+  // them for final values.
+  const badgeState: SharedDbStatus = !sharedReady ? 'checking' : sharedDb;
 
   const sharedResultNotice = (okMsg: string, outcome: PushOutcome): string => {
     const withDetail = (base: string): string =>
@@ -713,43 +726,43 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <button
             onClick={() => void refreshSharedDb()}
             title={
-              sharedDb === 'connected'
+              badgeState === 'connected'
                 ? 'Shared database reachable — saves sync to all browsers & devices. Click to re-check.'
-                : sharedDb === 'no-db'
+                : badgeState === 'no-db'
                 ? 'Shared database NOT configured — saves stay in this browser. Set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY on the host and run supabase/site_settings.sql. Click to re-check.'
-                : sharedDb === 'unreachable'
+                : badgeState === 'unreachable'
                 ? 'Shared database unreachable — check network/deployment. Click to re-check.'
-                : 'Checking shared database…'
+                : 'Syncing shared values — the form will update when the latest values arrive. Please wait before saving.'
             }
             className={`hidden sm:flex items-center gap-1.5 rounded-lg border px-3 py-1 text-[11px] font-bold cursor-pointer transition-colors ${
-              sharedDb === 'connected'
+              badgeState === 'connected'
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                : sharedDb === 'no-db'
+                : badgeState === 'no-db'
                 ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-                : sharedDb === 'unreachable'
+                : badgeState === 'unreachable'
                 ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
                 : 'bg-slate-500/15 border-slate-600/40 text-slate-400'
             }`}
           >
             <span
               className={`h-2 w-2 rounded-full ${
-                sharedDb === 'connected'
+                badgeState === 'connected'
                   ? 'bg-emerald-400'
-                  : sharedDb === 'no-db'
+                  : badgeState === 'no-db'
                   ? 'bg-amber-400'
-                  : sharedDb === 'unreachable'
+                  : badgeState === 'unreachable'
                   ? 'bg-rose-400'
                   : 'bg-slate-400 animate-pulse'
               }`}
             />
             <span>
-              {sharedDb === 'connected'
+              {badgeState === 'connected'
                 ? 'Shared DB: Connected'
-                : sharedDb === 'no-db'
+                : badgeState === 'no-db'
                 ? 'Shared DB: Not configured'
-                : sharedDb === 'unreachable'
+                : badgeState === 'unreachable'
                 ? 'Shared DB: Unreachable'
-                : 'Shared DB: Checking…'}
+                : 'Syncing shared values…'}
             </span>
           </button>
           {saveNotice && (
