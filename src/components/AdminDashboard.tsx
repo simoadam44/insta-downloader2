@@ -67,7 +67,7 @@ import {
 } from '../data/guides';
 import { getApiBaseUrl } from '../services/extractorService';
 import { generateDynamicSitemapXml } from '../services/seoEngine';
-import { getSharedDbStatus, pushSharedSettingsDetailed, SharedDbStatus, PushOutcome } from '../services/siteSettings';
+import { diffTopLevel, getSharedDbStatus, pushSharedSettingsDetailed, SharedDbStatus, PushOutcome } from '../services/siteSettings';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -359,25 +359,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     return withDetail(`${okMsg} (Shared sync failed — saved in this browser only. Retry in a few seconds.)`);
   };
 
+  // Diff-based save: only the fields the user actually changed (vs the last
+  // values loaded from the shared DB) are sent. A save from a stale or empty
+  // form can therefore never wipe fields set elsewhere (e.g. GA4). The local
+  // state + cache are still updated in full via onUpdate*.
+  const saveSectionDiff = async (
+    baseJson: string,
+    local: unknown,
+    section: 'branding' | 'seoTracking' | 'ads' | 'api',
+    okMsg: string
+  ) => {
+    let base: unknown = {};
+    try {
+      base = JSON.parse(baseJson);
+    } catch {}
+    const patch = diffTopLevel(base, local);
+    if (Object.keys(patch).length === 0) {
+      flashNotice('No changes — everything is already up to date.');
+      return;
+    }
+    const outcome = await pushSharedSettingsDetailed({ [section]: patch } as any);
+    flashNotice(sharedResultNotice(okMsg, outcome));
+    void refreshSharedDb();
+  };
+
   const handleSaveBranding = async () => {
     onUpdateBrandingSettings(localBranding);
-    const outcome = await pushSharedSettingsDetailed({ branding: localBranding });
-    flashNotice(sharedResultNotice('Brand identity and logo successfully published across the site!', outcome));
-    void refreshSharedDb();
+    await saveSectionDiff(
+      lastSyncedBranding.current,
+      localBranding,
+      'branding',
+      'Brand identity and logo successfully published across the site!'
+    );
   };
 
   const handleSaveSeoTracking = async () => {
     onUpdateSeoTrackingSettings(localSeoTracking);
-    const outcome = await pushSharedSettingsDetailed({ seoTracking: localSeoTracking });
-    flashNotice(sharedResultNotice('SEO & Webmaster tracking tags deployed successfully!', outcome));
-    void refreshSharedDb();
+    await saveSectionDiff(
+      lastSyncedSeoTracking.current,
+      localSeoTracking,
+      'seoTracking',
+      'SEO & Webmaster tracking tags deployed successfully!'
+    );
   };
 
   const handleSaveAds = async () => {
     onUpdateAdSettings(localAds);
-    const outcome = await pushSharedSettingsDetailed({ ads: localAds });
-    flashNotice(sharedResultNotice('Ad placements and AdSense settings updated!', outcome));
-    void refreshSharedDb();
+    await saveSectionDiff(
+      lastSyncedAds.current,
+      localAds,
+      'ads',
+      'Ad placements and AdSense settings updated!'
+    );
   };
 
   const handleSaveSeo = () => {
@@ -387,9 +420,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleSaveApi = async () => {
     onUpdateApiSettings(localApi);
-    const outcome = await pushSharedSettingsDetailed({ api: localApi });
-    flashNotice(sharedResultNotice('Backend API and proxy settings saved!', outcome));
-    void refreshSharedDb();
+    await saveSectionDiff(
+      lastSyncedApi.current,
+      localApi,
+      'api',
+      'Backend API and proxy settings saved!'
+    );
   };
 
   // Keywords & Tools Engine State (programmatic SEO landing pages)

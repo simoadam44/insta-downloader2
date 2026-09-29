@@ -110,6 +110,24 @@ export async function pushSharedSettings(payload: SharedSettingsPayload): Promis
   return (await pushSharedSettingsDetailed(payload)).result;
 }
 
+// Top-level diff: returns only the keys whose values differ from `base`
+// (compared as JSON, so nested slot objects work too). Used so a save from a
+// stale/empty form only writes the fields the user actually changed — it can
+// never wipe fields that were set elsewhere (e.g. GA4).
+export function diffTopLevel(base: unknown, local: unknown): Record<string, any> {
+  const out: Record<string, any> = {};
+  const b = base && typeof base === 'object' ? (base as Record<string, any>) : {};
+  const l = local && typeof local === 'object' ? (local as Record<string, any>) : {};
+  for (const k of Object.keys(l)) {
+    try {
+      if (JSON.stringify(l[k]) !== JSON.stringify(b[k])) out[k] = l[k];
+    } catch {
+      out[k] = l[k];
+    }
+  }
+  return out;
+}
+
 // Connectivity probe for the admin status badge — public GET, no auth needed.
 // Distinguishes "DB not configured" (env/table) from "unreachable" (network).
 export type SharedDbStatus = 'checking' | 'connected' | 'no-db' | 'unreachable';

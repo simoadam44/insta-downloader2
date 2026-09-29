@@ -1678,57 +1678,61 @@ async function handleSiteSettingsWrite(req: Request, res: Response) {
     };
   };
 
+  // TRUE PATCH semantics: only keys PRESENT in the input are written —
+  // absent keys keep their stored values. (An earlier version filled absent
+  // keys with ""/false/defaults, so saving one field from a stale/empty form
+  // wiped the other fields, e.g. GA4. Empty STRING values ARE written, so
+  // intentionally clearing a field still works.)
   const partial: Record<string, any> = {};
   if (body.branding && typeof body.branding === 'object') {
     const b = body.branding;
-    partial.branding = {
-      siteName: str(b.siteName, 80),
-      siteTagline: str(b.siteTagline, 160),
-      logoType: ['default', 'image', 'text'].includes(b.logoType) ? b.logoType : 'default',
-      customLogoUrl: str(b.customLogoUrl, 500),
-      faviconUrl: str(b.faviconUrl, 500),
-      accentColor: str(b.accentColor, 20),
-      contactEmail: str(b.contactEmail, 120),
-      copyrightText: str(b.copyrightText, 300),
-    };
+    const o: Record<string, any> = {};
+    if (typeof b.siteName === 'string') o.siteName = b.siteName.substring(0, 80);
+    if (typeof b.siteTagline === 'string') o.siteTagline = b.siteTagline.substring(0, 160);
+    if (['default', 'image', 'text'].includes(b.logoType)) o.logoType = b.logoType;
+    if (typeof b.customLogoUrl === 'string') o.customLogoUrl = b.customLogoUrl.substring(0, 500);
+    if (typeof b.faviconUrl === 'string') o.faviconUrl = b.faviconUrl.substring(0, 500);
+    if (typeof b.accentColor === 'string') o.accentColor = b.accentColor.substring(0, 20);
+    if (typeof b.contactEmail === 'string') o.contactEmail = b.contactEmail.substring(0, 120);
+    if (typeof b.copyrightText === 'string') o.copyrightText = b.copyrightText.substring(0, 300);
+    if (Object.keys(o).length > 0) partial.branding = o;
   }
   if (body.seoTracking && typeof body.seoTracking === 'object') {
     const s = body.seoTracking;
-    partial.seoTracking = {
-      googleAnalyticsId: str(s.googleAnalyticsId, 30),
-      googleSearchConsoleCode: str(s.googleSearchConsoleCode, 2000),
-      bingWebmasterCode: str(s.bingWebmasterCode, 2000),
-      facebookPixelId: str(s.facebookPixelId, 40),
-      customHeadCode: str(s.customHeadCode, 20000),
-      customBodyCode: str(s.customBodyCode, 20000),
-      enableRobotsIndex: bool(s.enableRobotsIndex, true),
-      canonicalBaseUrl: str(s.canonicalBaseUrl, 200),
-    };
+    const o: Record<string, any> = {};
+    if (typeof s.googleAnalyticsId === 'string') o.googleAnalyticsId = s.googleAnalyticsId.substring(0, 30);
+    if (typeof s.googleSearchConsoleCode === 'string') o.googleSearchConsoleCode = s.googleSearchConsoleCode.substring(0, 2000);
+    if (typeof s.bingWebmasterCode === 'string') o.bingWebmasterCode = s.bingWebmasterCode.substring(0, 2000);
+    if (typeof s.facebookPixelId === 'string') o.facebookPixelId = s.facebookPixelId.substring(0, 40);
+    if (typeof s.customHeadCode === 'string') o.customHeadCode = s.customHeadCode.substring(0, 20000);
+    if (typeof s.customBodyCode === 'string') o.customBodyCode = s.customBodyCode.substring(0, 20000);
+    if (typeof s.enableRobotsIndex === 'boolean') o.enableRobotsIndex = s.enableRobotsIndex;
+    if (typeof s.canonicalBaseUrl === 'string') o.canonicalBaseUrl = s.canonicalBaseUrl.substring(0, 200);
+    if (Object.keys(o).length > 0) partial.seoTracking = o;
   }
   if (body.ads && typeof body.ads === 'object') {
     const a = body.ads;
-    const cleaned: Record<string, any> = {
-      autoAdsEnabled: bool(a.autoAdsEnabled, false),
-      autoAdsClientId: str(a.autoAdsClientId, 60),
-      customPopunderCode: str(a.customPopunderCode, 20000),
-    };
+    const cleaned: Record<string, any> = {};
+    if (typeof a.autoAdsEnabled === 'boolean') cleaned.autoAdsEnabled = a.autoAdsEnabled;
+    if (typeof a.autoAdsClientId === 'string') cleaned.autoAdsClientId = a.autoAdsClientId.substring(0, 60);
+    if (typeof a.customPopunderCode === 'string') cleaned.customPopunderCode = a.customPopunderCode.substring(0, 20000);
     for (const slot of ['headerBanner', 'belowInput', 'aboveResult', 'inContentBanner', 'footerBanner', 'stickyFooterBanner']) {
       const c = cleanAdSlot(a[slot]);
       if (c) cleaned[slot] = c;
     }
-    partial.ads = cleaned;
+    if (Object.keys(cleaned).length > 0) partial.ads = cleaned;
   }
   if (body.api && typeof body.api === 'object') {
     const p = body.api;
-    partial.api = {
-      primaryEndpoint: str(p.primaryEndpoint, 200),
-      backupEndpoint: str(p.backupEndpoint, 200),
-      rapidApiKey: str(p.rapidApiKey, 200),
-      timeoutMs: num(p.timeoutMs, 15000, 1000, 60000),
-      rateLimitPerMin: num(p.rateLimitPerMin, 50, 1, 1000),
-      enableRotatingProxies: bool(p.enableRotatingProxies, false),
-      proxyPool: strArr(p.proxyPool, 20, 300),
-    };
+    const o: Record<string, any> = {};
+    if (typeof p.primaryEndpoint === 'string') o.primaryEndpoint = p.primaryEndpoint.substring(0, 200);
+    if (typeof p.backupEndpoint === 'string') o.backupEndpoint = p.backupEndpoint.substring(0, 200);
+    if (typeof p.rapidApiKey === 'string') o.rapidApiKey = p.rapidApiKey.substring(0, 200);
+    if (typeof p.timeoutMs === 'number' && isFinite(p.timeoutMs)) o.timeoutMs = num(p.timeoutMs, 15000, 1000, 60000);
+    if (typeof p.rateLimitPerMin === 'number' && isFinite(p.rateLimitPerMin)) o.rateLimitPerMin = num(p.rateLimitPerMin, 50, 1, 1000);
+    if (typeof p.enableRotatingProxies === 'boolean') o.enableRotatingProxies = p.enableRotatingProxies;
+    if (Array.isArray(p.proxyPool)) o.proxyPool = strArr(p.proxyPool, 20, 300);
+    if (Object.keys(o).length > 0) partial.api = o;
   }
   if (body.seoOverrides && typeof body.seoOverrides === 'object') {
     // Cap: max 120 keys, each entry sanitized to known ToolSeoContent fields.
