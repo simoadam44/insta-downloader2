@@ -9,6 +9,30 @@
     <meta property="og:description" content="Fast, free, and anonymous online Instagram Downloader. Save Instagram videos, reels, photos, stories, and highlights in high-definition 1080p MP4 and JPG." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="IGSaveGo" />
+    <meta property="og:url" content="https://www.igsavego.com/" />
+
+    <!-- ===== Crawl directives (static, NOT JavaScript-dependent) =====
+         These must exist in the served HTML: this is a SPA, so Googlebot's
+         first fetch only sees this file. Without them here, indexing depends
+         entirely on JavaScript rendering (slower + far less reliable).
+         The runtime code (src/services/seoEngine.ts) reuses and updates these
+         exact tags per route via querySelector, so nothing is duplicated. -->
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://www.igsavego.com/" />
+
+    <!-- ===== Google Analytics 4 (static, fires before JS render) =====
+         The measurement ID is public by design (it ships in every pageview's
+         source). Both tags carry data-tracking="google-analytics" so the
+         runtime injector REPLACES them instead of appending a second gtag —
+         that prevents double-counting, and lets a different ID (or an empty
+         one) set in Admin override this one cleanly. -->
+    <script async data-tracking="google-analytics" src="https://www.googletagmanager.com/gtag/js?id=G-LWXLE5CQD4"></script>
+    <script data-tracking="google-analytics">
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-LWXLE5CQD4');
+    </script>
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="IGSaveGo - Instagram Downloader" />
     <meta name="twitter:description" content="Download Instagram videos, reels, photos, stories, and highlights in Full HD." />
