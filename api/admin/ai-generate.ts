@@ -74,7 +74,7 @@ function getModelChain(): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   if (fromEnv.length > 0) return fromEnv.slice(0, 5);
-  return ['gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
+  return ['gemini-3.5-flash-lite', 'gemini-2.5-flash-lite'];
 }
 
 function buildAiPrompts(kind: 'guide' | 'keyword', keyword: string, lang: string, tool: string): { system: string; user: string } {
@@ -251,7 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // answers. Key/quota errors abort immediately (no other model can fix them).
     const models = getModelChain();
     let text: string | null = null;
-    let lastError = 'AI generation failed.';
+    const failures: string[] = [];
     let sawRateLimit = false;
     for (const model of models) {
       let attempt = await callGemini(apiKey, model, system, user, true);
@@ -272,21 +272,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Only if EVERYTHING is rate-limited do we say so.
       if (attempt.status === 429) {
         sawRateLimit = true;
-        lastError = `${model}: quota exceeded`;
+        failures.push(`${model}: quota exceeded`);
         continue;
       }
-      if (attempt.error) lastError = `${model}: ${attempt.error}`;
+      failures.push(`${model}: ${attempt.error || `HTTP ${attempt.status || '?'}`}`);
     }
     if (!text) {
-      if (sawRateLimit) {
+      // Report EVERY model's fate (not just the last one) for fast diagnosis.
+      const tried = failures.join(' | ').substring(0, 300);
+      if (sawRateLimit && failures.every((f) => /quota exceeded/i.test(f))) {
         return res.status(502).json({
           error: 'Free AI quota exceeded right now. Wait a minute and retry.',
           hint: 'Tried: ' + models.join(', ') + '.',
         });
       }
       return res.status(502).json({
-        error: lastError.substring(0, 220),
-        hint: 'Tried: ' + models.join(', ') + '. Set GEMINI_MODEL to a current free Gemini model id.',
+        error: tried || 'AI generation failed.',
+        hint: 'Set GEMINI_MODEL to a current free Gemini model id.',
       });
     }
     const fields = sanitizeAiFields(kind, extractJsonObject(text));
