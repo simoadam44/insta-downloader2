@@ -68,6 +68,7 @@ import {
 import { getApiBaseUrl } from '../services/extractorService';
 import { generateDynamicSitemapXml } from '../services/seoEngine';
 import { diffTopLevel, getSharedDbStatus, pushSharedSettingsDetailed, SharedDbStatus, PushOutcome } from '../services/siteSettings';
+import { isEmptyValue, requestAiFill } from '../services/aiGenerate';
 
 interface AdminDashboardProps {
   onClose: () => void;
@@ -445,6 +446,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [keywordPages, setKeywordPages] = useState<KeywordToolPage[]>(() => loadKeywordPages());
   const [editingKeyword, setEditingKeyword] = useState<KeywordToolPage | null>(null);
   const [keywordFormError, setKeywordFormError] = useState<string | null>(null);
+  const [aiGeneratingKeyword, setAiGeneratingKeyword] = useState(false);
 
   // After login, pull the shared list from Supabase so the admin edits
   // the same pages every visitor sees.
@@ -535,6 +537,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [guides, setGuides] = useState<GuideArticle[]>(() => loadGuides());
   const [editingGuide, setEditingGuide] = useState<GuideArticle | null>(null);
   const [guideFormError, setGuideFormError] = useState<string | null>(null);
+  const [aiGeneratingGuide, setAiGeneratingGuide] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -551,6 +554,100 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     saveGuides(list);
     setSaveNotice(notice);
     setTimeout(() => setSaveNotice(null), 3000);
+  };
+
+  // AI autofill (fill-empty-only): generates from Target Keyword and writes
+  // ONLY fields that are currently empty — anything typed by hand is kept.
+  // Review the result, then save normally (Supabase flow unchanged).
+  const handleAiFillGuide = async () => {
+    if (!editingGuide || aiGeneratingGuide) return;
+    setGuideFormError(null);
+    const kw = (editingGuide.keyword || '').trim();
+    if (kw.length < 3) {
+      setGuideFormError('Enter a Target Keyword (min 3 characters) before generating.');
+      return;
+    }
+    setAiGeneratingGuide(true);
+    try {
+      const res = await requestAiFill('guide', { keyword: kw, lang: editingGuide.lang, tool: editingGuide.tool });
+      if (!res.ok || !res.fields) {
+        setGuideFormError(res.error || 'AI generation failed.');
+        return;
+      }
+      const f = res.fields;
+      const next = { ...editingGuide };
+      let filled = 0;
+      const takeStr = (cur: string, v: unknown): string => {
+        if (!isEmptyValue(cur) || typeof v !== 'string' || !v.trim()) return cur;
+        filled++;
+        return v.trim();
+      };
+      next.slug = takeStr(next.slug, f.slug);
+      next.title = takeStr(next.title, f.title);
+      next.metaDescription = takeStr(next.metaDescription, f.metaDescription);
+      next.h1 = takeStr(next.h1, f.h1);
+      next.excerpt = takeStr(next.excerpt, f.excerpt);
+      const sectionsEmpty =
+        !next.sections || next.sections.length === 0 || next.sections.every((s) => !s.heading.trim() && !s.body.trim());
+      if (sectionsEmpty && Array.isArray(f.sections) && f.sections.length > 0) {
+        next.sections = (f.sections as GuideArticle['sections']).filter((s) => s && s.heading && s.body);
+        if (next.sections.length > 0) filled++;
+      }
+      const faqsEmpty =
+        !next.faqs || next.faqs.length === 0 || next.faqs.every((x) => !x.question.trim() && !x.answer.trim());
+      if (faqsEmpty && Array.isArray(f.faqs) && f.faqs.length > 0) {
+        next.faqs = (f.faqs as GuideArticle['faqs']).filter((x) => x && x.question && x.answer);
+        if (next.faqs.length > 0) filled++;
+      }
+      setEditingGuide(next);
+      setGuideFormError(
+        filled === 0
+          ? 'AI returned content, but every field is already filled — clear a field to let AI fill it.'
+          : null
+      );
+    } finally {
+      setAiGeneratingGuide(false);
+    }
+  };
+
+  const handleAiFillKeyword = async () => {
+    if (!editingKeyword || aiGeneratingKeyword) return;
+    setKeywordFormError(null);
+    const kw = (editingKeyword.targetKeyword || '').trim();
+    if (kw.length < 3) {
+      setKeywordFormError('Enter a Target Keyword (min 3 characters) before generating.');
+      return;
+    }
+    setAiGeneratingKeyword(true);
+    try {
+      const res = await requestAiFill('keyword', { keyword: kw, lang: editingKeyword.lang, tool: editingKeyword.tool });
+      if (!res.ok || !res.fields) {
+        setKeywordFormError(res.error || 'AI generation failed.');
+        return;
+      }
+      const f = res.fields;
+      const next = { ...editingKeyword };
+      let filled = 0;
+      const takeStr = (cur: string, v: unknown): string => {
+        if (!isEmptyValue(cur) || typeof v !== 'string' || !v.trim()) return cur;
+        filled++;
+        return v.trim();
+      };
+      next.slug = takeStr(next.slug, f.slug);
+      next.badge = takeStr(next.badge, f.badge);
+      next.title = takeStr(next.title, f.title);
+      next.metaDescription = takeStr(next.metaDescription, f.metaDescription);
+      next.h1 = takeStr(next.h1, f.h1);
+      next.subtitle = takeStr(next.subtitle, f.subtitle);
+      setEditingKeyword(next);
+      setKeywordFormError(
+        filled === 0
+          ? 'AI returned content, but every field is already filled — clear a field to let AI fill it.'
+          : null
+      );
+    } finally {
+      setAiGeneratingKeyword(false);
+    }
   };
 
   const handleSaveGuide = async () => {
@@ -1699,6 +1796,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <p className="text-xs text-slate-400 mt-1">
                     Live URL preview: <span className="font-mono text-cyan-300">/{sanitizeSlug(editingKeyword.slug) || 'your-slug'}</span>
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleAiFillKeyword}
+                    disabled={aiGeneratingKeyword}
+                    title="Fill the empty fields from Target Keyword using AI — anything you typed stays untouched"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{aiGeneratingKeyword ? 'Generating with AI…' : 'Generate with AI from Target Keyword'}</span>
+                  </button>
 
                   {keywordFormError && (
                     <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
@@ -1954,6 +2061,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Live URL preview:{' '}
                     <span className="font-mono text-cyan-300">/blog/{sanitizeGuideSlug(editingGuide.slug) || 'your-slug'}</span>
                   </p>
+                  <button
+                    type="button"
+                    onClick={handleAiFillGuide}
+                    disabled={aiGeneratingGuide}
+                    title="Fill the empty fields from Target Keyword using AI — anything you typed stays untouched"
+                    className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-xs font-bold text-violet-200 hover:bg-violet-500/20 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{aiGeneratingGuide ? 'Generating with AI…' : 'Generate with AI from Target Keyword'}</span>
+                  </button>
                   {guideFormError && (
                     <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
                       {guideFormError}
