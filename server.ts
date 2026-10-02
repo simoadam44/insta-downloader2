@@ -1494,11 +1494,15 @@ function getModelChain(): string[] {
     .map((s) => s.trim())
     .filter(Boolean);
   if (fromEnv.length > 0) return fromEnv.slice(0, 5);
+  // `openrouter/free` is OpenRouter's Free Models Router: it picks a currently
+  // available free model itself, so rotation/deprecation of individual :free
+  // ids stops breaking us. Specific ids follow as fallbacks (wrong/dead ids
+  // fail fast with 404 and the chain moves on).
   return [
-    'meta-llama/llama-3.3-70b-instruct:free',
-    'google/gemma-3-27b-it:free',
-    'deepseek/deepseek-chat-v3-0324:free',
-    'qwen/qwen3-235b-a22b:free',
+    'openrouter/free',
+    'qwen/qwen3.8-27b:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'google/gemma-4-26b-a4b-it:free',
   ];
 }
 
@@ -1574,7 +1578,7 @@ async function callOpenRouter(apiKey: string, model: string, system: string, use
         { role: 'user', content: user },
       ],
       temperature: 0.7,
-      max_tokens: 1600,
+      max_tokens: 2000,
     };
     if (useJsonMode) body.response_format = { type: 'json_object' };
     const res = await fetch(OPENROUTER_API_URL, {
@@ -1671,6 +1675,7 @@ app.post('/api/admin/ai-generate', async (req: Request, res: Response) => {
   const models = getModelChain();
   let text: string | null = null;
   let lastError = 'AI generation failed.';
+  let sawRateLimit = false;
   for (const model of models) {
     let attempt = await callOpenRouter(apiKey, model, system, user, true);
     if (!attempt.ok && attempt.status === 400 && /response_format|json mode/i.test(attempt.error || '')) {
@@ -1682,10 +1687,22 @@ app.post('/api/admin/ai-generate', async (req: Request, res: Response) => {
     }
     if (attempt.status === 401) return res.status(502).json({ error: 'AI key rejected by OpenRouter. Check OPENROUTER_API_KEY.' });
     if (attempt.status === 402) return res.status(502).json({ error: 'OpenRouter credits exhausted for this key (or the model needs a paid id).' });
-    if (attempt.status === 429) return res.status(502).json({ error: 'AI provider rate-limited. Wait a minute and retry.' });
+    // Upstream 429s are per-provider and common on free models — try the next
+    // model instead of aborting. Only if EVERYTHING is rate-limited do we say so.
+    if (attempt.status === 429) {
+      sawRateLimit = true;
+      lastError = `${model}: upstream rate-limited`;
+      continue;
+    }
     if (attempt.error) lastError = `${model}: ${attempt.error}`;
   }
   if (!text) {
+    if (sawRateLimit) {
+      return res.status(502).json({
+        error: 'Free AI providers are rate-limited right now. Wait a minute and retry.',
+        hint: 'Tried: ' + models.join(', ') + '.',
+      });
+    }
     return res.status(502).json({
       error: lastError.substring(0, 220),
       hint: 'Tried: ' + models.join(', ') + '. Set OPENROUTER_MODEL to a current free id (see openrouter.ai/models, filter Price: Free).',
