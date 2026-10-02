@@ -66,10 +66,22 @@ function verifyAdminToken(authHeader: string | undefined): { valid: boolean; use
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-function getPrimaryModel(): string {
-  return process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free';
+// Model chain: free-tier model ids rotate/die often, so try several in order.
+// OPENROUTER_MODEL may be a single id or a comma-separated list (first = preferred).
+// Paid ids (no :free suffix) also work if the key has credits.
+function getModelChain(): string[] {
+  const fromEnv = (process.env.OPENROUTER_MODEL || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (fromEnv.length > 0) return fromEnv.slice(0, 5);
+  return [
+    'meta-llama/llama-3.3-70b-instruct:free',
+    'google/gemma-3-27b-it:free',
+    'deepseek/deepseek-chat-v3-0324:free',
+    'qwen/qwen3-235b-a22b:free',
+  ];
 }
-const FALLBACK_MODEL = 'google/gemma-3-27b-it:free';
 
 function buildAiPrompts(kind: 'guide' | 'keyword', keyword: string, lang: string, tool: string): { system: string; user: string } {
   const langNames: Record<string, string> = {
@@ -134,8 +146,18 @@ function extractJsonObject(raw: string): any | null {
   }
 }
 
-async function callOpenRouter(apiKey: string, model: string, system: string, user: string): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
+async function callOpenRouter(apiKey: string, model: string, system: string, user: string, useJsonMode: boolean): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
   try {
+    const body: Record<string, any> = {
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      temperature: 0.7,
+      max_tokens: 1600,
+    };
+    if (useJsonMode) body.response_format = { type: 'json_object' };
     const res = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
@@ -145,17 +167,8 @@ async function callOpenRouter(apiKey: string, model: string, system: string, use
         'HTTP-Referer': 'https://www.igsavego.com/admin',
         'X-Title': 'IGSaveGo Admin AI Generator',
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-        temperature: 0.7,
-        max_tokens: 1600,
-        response_format: { type: 'json_object' },
-      }),
-      signal: AbortSignal.timeout(55000),
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45000),
     });
     const data: any = await res.json().catch(() => null);
     if (!res.ok) {
@@ -235,17 +248,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   try {
     const { system, user } = buildAiPrompts(kind, keyword, lang, tool);
-    let attempt = await callOpenRouter(apiKey, getPrimaryModel(), system, user);
-    if (!attempt.ok && attempt.status !== 401 && attempt.status !== 402 && attempt.status !== 429) {
-      attempt = await callOpenRouter(apiKey, FALLBACK_MODEL, system, user);
-    }
-    if (!attempt.ok) {
+    // Walk the model chain: dead/paid-only free ids fail fast (404), the first
+    // live model answers. Auth/billing errors abort immediately (no other model
+    // can fix a bad key or empty credits).
+    const models = getModelChain();
+    let text: string | null = null;
+    let lastError = 'AI generation failed.';
+    for (const model of models) {
+      let attempt = await callOpenRouter(apiKey, model, system, user, true);
+      if (!attempt.ok && attempt.status === 400 && /response_format|json mode/i.test(attempt.error || '')) {
+        attempt = await callOpenRouter(apiKey, model, system, user, false); // retry: plain prompt, we strip fences
+      }
+      if (attempt.ok && attempt.text) {
+        text = attempt.text;
+        break;
+      }
       if (attempt.status === 401) return res.status(502).json({ error: 'AI key rejected by OpenRouter. Check OPENROUTER_API_KEY.' });
-      if (attempt.status === 402) return res.status(502).json({ error: 'OpenRouter credits exhausted for this key.' });
+      if (attempt.status === 402) return res.status(502).json({ error: 'OpenRouter credits exhausted for this key (or the model needs a paid id).' });
       if (attempt.status === 429) return res.status(502).json({ error: 'AI provider rate-limited. Wait a minute and retry.' });
-      return res.status(502).json({ error: attempt.error || 'AI generation failed.', hint: 'If models changed, set OPENROUTER_MODEL to a current :free model id.' });
+      if (attempt.error) lastError = `${model}: ${attempt.error}`;
     }
-    const fields = sanitizeAiFields(kind, extractJsonObject(attempt.text || ''));
+    if (!text) {
+      return res.status(502).json({
+        error: lastError.substring(0, 220),
+        hint: 'Tried: ' + models.join(', ') + '. Set OPENROUTER_MODEL to a current free id (see openrouter.ai/models, filter Price: Free).',
+      });
+    }
+    const fields = sanitizeAiFields(kind, extractJsonObject(text));
     if (!fields) return res.status(502).json({ error: 'AI returned unusable content. Please retry.' });
     return res.status(200).json({ fields });
   } catch (e: any) {
