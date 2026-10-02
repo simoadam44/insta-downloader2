@@ -1,7 +1,7 @@
 import type { LanguageCode, MediaType } from '../types';
 
 // AI autofill client — calls OUR backend proxy (POST /api/admin/ai-generate),
-// which holds the OpenRouter key server-side. The key never reaches the browser.
+// which holds the Gemini key server-side. The key never reaches the browser.
 // Returns generated fields (partial — only keys the AI produced) or an error.
 // Never throws.
 

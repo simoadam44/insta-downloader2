@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
 // SELF-CONTAINED Vercel function — zero local-file imports.
-// AI content generator (OpenRouter proxy — the API key NEVER reaches the browser).
+// AI content generator (Google Gemini proxy — the API key NEVER reaches the browser).
 //   POST /api/admin/ai-generate { kind: 'guide'|'keyword', keyword, lang, tool }
 //   -> { fields: {...} }  (admin Bearer required, strict rate limit)
 
@@ -64,27 +64,17 @@ function verifyAdminToken(authHeader: string | undefined): { valid: boolean; use
   return { valid: false };
 }
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-// Model chain: free-tier model ids rotate/die often, so try several in order.
-// OPENROUTER_MODEL may be a single id or a comma-separated list (first = preferred).
-// Paid ids (no :free suffix) also work if the key has credits.
+// Model chain: tiny fallback if the primary id is retired — GEMINI_MODEL may be
+// a single id or a comma-separated list (first = preferred).
 function getModelChain(): string[] {
-  const fromEnv = (process.env.OPENROUTER_MODEL || '')
+  const fromEnv = (process.env.GEMINI_MODEL || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   if (fromEnv.length > 0) return fromEnv.slice(0, 5);
-  // `openrouter/free` is OpenRouter's Free Models Router: it picks a currently
-  // available free model itself, so rotation/deprecation of individual :free
-  // ids stops breaking us. Specific ids follow as fallbacks (wrong/dead ids
-  // fail fast with 404 and the chain moves on).
-  return [
-    'openrouter/free',
-    'qwen/qwen3.8-27b:free',
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'google/gemma-4-26b-a4b-it:free',
-  ];
+  return ['gemini-2.5-flash-lite', 'gemini-2.0-flash-lite'];
 }
 
 function buildAiPrompts(kind: 'guide' | 'keyword', keyword: string, lang: string, tool: string): { system: string; user: string } {
@@ -150,37 +140,42 @@ function extractJsonObject(raw: string): any | null {
   }
 }
 
-async function callOpenRouter(apiKey: string, model: string, system: string, user: string, useJsonMode: boolean): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
+async function callGemini(apiKey: string, model: string, system: string, user: string, useJsonMode: boolean): Promise<{ ok: boolean; text?: string; error?: string; status?: number }> {
   try {
+    // Text output only — no images, no tools — keeps token usage minimal.
     const body: Record<string, any> = {
-      model,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.7,
-      max_tokens: 2000,
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ parts: [{ text: user }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      },
     };
-    if (useJsonMode) body.response_format = { type: 'json_object' };
-    const res = await fetch(OPENROUTER_API_URL, {
+    if (useJsonMode) body.generationConfig.responseMimeType = 'application/json';
+    const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://www.igsavego.com/admin',
-        'X-Title': 'IGSaveGo Admin AI Generator',
+        'x-goog-api-key': apiKey,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(45000),
     });
     const data: any = await res.json().catch(() => null);
     if (!res.ok) {
-      const msg = typeof data?.error?.message === 'string' ? data.error.message : `OpenRouter HTTP ${res.status}`;
+      const msg = typeof data?.error?.message === 'string' ? data.error.message : `Gemini HTTP ${res.status}`;
       return { ok: false, error: msg.substring(0, 200), status: res.status };
     }
-    const text = data?.choices?.[0]?.message?.content;
-    if (typeof text !== 'string' || !text.trim()) return { ok: false, error: 'Empty AI response.' };
+    const parts = data?.candidates?.[0]?.content?.parts;
+    const text = Array.isArray(parts)
+      ? parts.filter((p: any) => typeof p?.text === 'string').map((p: any) => p.text).join('')
+      : '';
+    if (!text.trim()) {
+      const blocked = data?.promptFeedback?.blockReason;
+      return { ok: false, error: blocked ? `AI refused the request (${blocked}).` : 'Empty AI response.' };
+    }
     return { ok: true, text };
   } catch (e: any) {
     const timedOut = e?.name === 'TimeoutError' || /timeout|aborted/i.test(String(e?.message || ''));
@@ -238,9 +233,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (checkRateLimit(req, 'ai-generate', 10, 60 * 1000)) {
     return res.status(429).json({ error: 'Too many AI requests. Please wait a minute and retry.' });
   }
-  const apiKey = process.env.OPENROUTER_API_KEY || '';
+  const apiKey = process.env.GEMINI_API_KEY || '';
   if (!apiKey) {
-    return res.status(503).json({ error: 'AI generator not configured. Set OPENROUTER_API_KEY on the host.', ai: false });
+    return res.status(503).json({ error: 'AI generator not configured. Set GEMINI_API_KEY on the host (get one free at aistudio.google.com).', ai: false });
   }
   const body = (req.body || {}) as any;
   const kind = body.kind === 'keyword' ? 'keyword' : 'guide';
@@ -252,29 +247,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   try {
     const { system, user } = buildAiPrompts(kind, keyword, lang, tool);
-    // Walk the model chain: dead/paid-only free ids fail fast (404), the first
-    // live model answers. Auth/billing errors abort immediately (no other model
-    // can fix a bad key or empty credits).
+    // Walk the model chain: retired ids fail fast (404), the first live model
+    // answers. Key/quota errors abort immediately (no other model can fix them).
     const models = getModelChain();
     let text: string | null = null;
     let lastError = 'AI generation failed.';
     let sawRateLimit = false;
     for (const model of models) {
-      let attempt = await callOpenRouter(apiKey, model, system, user, true);
-      if (!attempt.ok && attempt.status === 400 && /response_format|json mode/i.test(attempt.error || '')) {
-        attempt = await callOpenRouter(apiKey, model, system, user, false); // retry: plain prompt, we strip fences
+      let attempt = await callGemini(apiKey, model, system, user, true);
+      if (!attempt.ok && attempt.status === 400 && /responseMimeType|response_mime|json/i.test(attempt.error || '')) {
+        attempt = await callGemini(apiKey, model, system, user, false); // retry: plain prompt, we strip fences
       }
       if (attempt.ok && attempt.text) {
         text = attempt.text;
         break;
       }
-      if (attempt.status === 401) return res.status(502).json({ error: 'AI key rejected by OpenRouter. Check OPENROUTER_API_KEY.' });
-      if (attempt.status === 402) return res.status(502).json({ error: 'OpenRouter credits exhausted for this key (or the model needs a paid id).' });
-      // Upstream 429s are per-provider and common on free models — try the next
-      // model instead of aborting. Only if EVERYTHING is rate-limited do we say so.
+      if (attempt.status === 400 && /API_KEY_INVALID|API key not valid/i.test(attempt.error || '')) {
+        return res.status(502).json({ error: 'AI key rejected by Google. Check GEMINI_API_KEY.' });
+      }
+      if (attempt.status === 403) {
+        return res.status(502).json({ error: 'AI key lacks permission (check API restrictions in Google AI Studio).' });
+      }
+      // Free-tier 429s are per-model — try the next model instead of aborting.
+      // Only if EVERYTHING is rate-limited do we say so.
       if (attempt.status === 429) {
         sawRateLimit = true;
-        lastError = `${model}: upstream rate-limited`;
+        lastError = `${model}: quota exceeded`;
         continue;
       }
       if (attempt.error) lastError = `${model}: ${attempt.error}`;
@@ -282,13 +280,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!text) {
       if (sawRateLimit) {
         return res.status(502).json({
-          error: 'Free AI providers are rate-limited right now. Wait a minute and retry.',
+          error: 'Free AI quota exceeded right now. Wait a minute and retry.',
           hint: 'Tried: ' + models.join(', ') + '.',
         });
       }
       return res.status(502).json({
         error: lastError.substring(0, 220),
-        hint: 'Tried: ' + models.join(', ') + '. Set OPENROUTER_MODEL to a current free id (see openrouter.ai/models, filter Price: Free).',
+        hint: 'Tried: ' + models.join(', ') + '. Set GEMINI_MODEL to a current free Gemini model id.',
       });
     }
     const fields = sanitizeAiFields(kind, extractJsonObject(text));
