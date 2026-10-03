@@ -348,16 +348,19 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 </div>
               )}
 
-              {/* AUDIO TRACK EXTRACTION IF AVAILABLE */}
-              {media.audioTrack && (
+              {/* AUDIO TRACK EXTRACTION — shown whenever a playable video exists,
+                  even when the backend sent no audio metadata (the MP4 stream
+                  itself is the audio source). Photo-only results have no audio
+                  stream, so nothing is shown for them. */}
+              {(media.audioTrack || currentItem.type === 'video') && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-purple-200/80 bg-purple-50/60 p-3 text-xs">
                   <div className="flex items-center gap-2.5 truncate">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white shadow-2xs">
                       <Music className="h-4 w-4 animate-pulse" />
                     </div>
                     <div className="truncate">
-                      <div className="font-bold text-purple-950 truncate">{media.audioTrack.title}</div>
-                      <div className="text-[11px] text-purple-700 truncate">{media.audioTrack.artist} • 320 kbps MP3</div>
+                      <div className="font-bold text-purple-950 truncate">{media.audioTrack?.title || `Audio • @${media.author.username}`}</div>
+                      <div className="text-[11px] text-purple-700 truncate">{media.audioTrack?.artist || media.author.username} • 320 kbps MP3</div>
                     </div>
                   </div>
                   <button

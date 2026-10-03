@@ -113,6 +113,8 @@ async function fetchEmbedHtml(shortcode: string, env: Record<string, string | un
   const urls = [
     `https://www.instagram.com/p/${shortcode}/embed/captioned/`,
     `https://www.instagram.com/reel/${shortcode}/embed/captioned/`,
+    `https://www.instagram.com/p/${shortcode}/embed/`,
+    `https://www.instagram.com/reel/${shortcode}/embed/`,
   ];
   const results = await Promise.allSettled(urls.map((u) => attempt(u).catch(() => null)));
   for (const r of results) {
@@ -145,6 +147,99 @@ function parseEmbedHtml(html: string) {
   const u = html.match(/\\"username\\":\\"([^"\\]+)\\"/) || html.match(/"username":"([^"\\]+)"/);
   if (u?.[1]) username = u[1].trim();
   return { video, image, username };
+}
+
+// ---------- search-crawler scrape ----------
+// Instagram often serves full media JSON to crawlers (Googlebot/bingbot)
+// while login-walling datacenter IPs. Short parallel race, same as the rest.
+const CRAWLER_UAS = [
+  'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+  'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+];
+
+function findPolarisMedia(obj: any, depth = 0): any {
+  if (!obj || typeof obj !== 'object' || depth > 12) return null;
+  if (
+    (obj.video_versions && Array.isArray(obj.video_versions) && obj.video_versions.length > 0) ||
+    (obj.carousel_media && Array.isArray(obj.carousel_media) && obj.carousel_media.length > 0) ||
+    (obj.image_versions2 && obj.display_uri)
+  ) {
+    return obj;
+  }
+  const values = Array.isArray(obj) ? obj : Object.keys(obj).map((k) => obj[k]);
+  for (const v of values) {
+    const f = findPolarisMedia(v, depth + 1);
+    if (f) return f;
+  }
+  return null;
+}
+
+async function fetchViaCrawler(shortcode: string, timeoutMs = 6000): Promise<{ video: string | null; image: string | null } | null> {
+  const targets: string[] = [];
+  for (const path of [`/reel/${shortcode}/`, `/p/${shortcode}/`]) {
+    for (const ua of CRAWLER_UAS.slice(0, 2)) targets.push(`${ua}||https://www.instagram.com${path}`);
+  }
+  const attempt = async (target: string) => {
+    const sep = target.indexOf('||');
+    const ua = target.substring(0, sep);
+    const url = target.substring(sep + 2);
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': ua,
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!r.ok) return null;
+    const html = await r.text();
+    let video: string | null = null;
+    let image: string | null = null;
+    // 1. application/json polaris blobs -> video_versions
+    const scripts = html.match(/<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/gi) || [];
+    for (const tag of scripts) {
+      if (!/video_versions|xig_polaris_media|display_uri|carousel_media/.test(tag)) continue;
+      try {
+        const inner = tag.replace(/^<script[^>]*>/i, '').replace(/<\/script>$/i, '');
+        const found = findPolarisMedia(JSON.parse(inner));
+        if (found) {
+          if (!video && found.video_versions?.[0]?.url) video = cleanUrl(found.video_versions[0].url);
+          const disp = found.display_uri || found.image_versions2?.candidates?.[0]?.url;
+          if (!image && disp) image = cleanUrl(disp);
+          if (video) break;
+        }
+      } catch {}
+    }
+    // 2. direct mp4 / jpg regex
+    if (!video) {
+      const m = html.match(/https?:\\?\/\\?\/[^\s"<>]+\.mp4[^\s"<>]*|https:\/\/[^\s"<>]+\.mp4[^\s"<>]*/i);
+      if (m?.[0]) video = cleanUrl(m[0]);
+    }
+    if (!image) {
+      const m = html.match(/https?:\\?\/\\?\/scontent[^\s"<>]+\.jpg[^\s"<>]*|https:\/\/scontent[^\s"<>]+\.jpg[^\s"<>]*/i);
+      if (m?.[0]) image = cleanUrl(m[0]);
+    }
+    // 3. meta tags
+    if (!video) {
+      const m = html.match(/<meta\s+property="og:video(?::secure_url)?"\s+content="([^"]+)"/i);
+      if (m?.[1]) video = cleanUrl(m[1]);
+    }
+    if (!image) {
+      const m = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+      if (m?.[1]) image = cleanUrl(m[1]);
+    }
+    if (!video && !image) return null;
+    return { video, image };
+  };
+  const results = await Promise.allSettled(targets.map((t) => attempt(t).catch(() => null)));
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value?.video) return r.value;
+  }
+  for (const r of results) {
+    if (r.status === 'fulfilled' && r.value) return r.value;
+  }
+  return null;
 }
 
 async function fetchViaRapidApi(postUrl: string, env: Record<string, string | undefined>) {
@@ -212,14 +307,17 @@ export async function onRequest(context: CfContext): Promise<Response> {
 
   // Short parallel race (edge isolates bill wall-time): free providers first.
   const FAST_MS = 6000;
-  const [kkSettled, oeSettled, emSettled] = await Promise.allSettled([
+  const [kkSettled, oeSettled, emSettled, cwSettled] = await Promise.allSettled([
     fetchViaKkMirror(shortcode, FAST_MS),
     fetchOEmbed(canonical, FAST_MS),
     fetchEmbedHtml(shortcode, env, FAST_MS),
+    fetchViaCrawler(shortcode, FAST_MS),
   ]);
   const kkResult = kkSettled.status === 'fulfilled' ? kkSettled.value : null;
   const oembedEarly: any = oeSettled.status === 'fulfilled' ? oeSettled.value : null;
   const embedEarly: string | null = emSettled.status === 'fulfilled' ? emSettled.value : null;
+  const crawlEarly: { video: string | null; image: string | null } | null =
+    cwSettled.status === 'fulfilled' ? cwSettled.value : null;
 
   const oembedAuthor: string = oembedEarly?.author_name || 'instagram_user';
   const oembedTitle: string = oembedEarly?.title || `Instagram post by ${oembedAuthor}`;
@@ -249,6 +347,41 @@ export async function onRequest(context: CfContext): Promise<Response> {
               url: px,
               downloadUrl: px,
               thumbnail: oembedThumb || kk.url,
+              quality: '1080p Full HD',
+              format: 'mp4',
+              availableQualities: [],
+            },
+          ],
+        },
+        200,
+        noCache
+      );
+    }
+  }
+
+  // 0b) Search-crawler scrape (no key, no login) — often sees video streams
+  // that are login-walled for datacenter IPs on the normal pages.
+  const crawlImageFallback = crawlEarly && !crawlEarly.video && crawlEarly.image ? crawlEarly.image : null;
+  {
+    const cw = crawlEarly?.video ? crawlEarly : null;
+    if (cw?.video) {
+      const file = `igsavego_${shortcode}_${oembedAuthor}.mp4`;
+      const px = proxied(cw.video, file);
+      return json(
+        {
+          id: shortcode,
+          mediaType: rawUrl.includes('/reel') ? 'reels' : 'video',
+          originalUrl: rawUrl,
+          author: { username: oembedAuthor, fullName: oembedTitle, avatar: '', isVerified: false },
+          caption: oembedTitle,
+          provider: 'crawler',
+          items: [
+            {
+              id: `item_${shortcode}_1`,
+              type: 'video',
+              url: px,
+              downloadUrl: px,
+              thumbnail: cw.image || oembedThumb || cw.video,
               quality: '1080p Full HD',
               format: 'mp4',
               availableQualities: [],
@@ -388,7 +521,7 @@ export async function onRequest(context: CfContext): Promise<Response> {
   }
 
   const oembed = oembedEarly;
-  if (!oembed && !kkImageFallback) {
+  if (!oembed && !kkImageFallback && !crawlImageFallback) {
     return json(
       {
         error: 'Media not found. The post is private, deleted, or all free providers are busy — please try again in a minute.',
@@ -398,7 +531,7 @@ export async function onRequest(context: CfContext): Promise<Response> {
       noCache
     );
   }
-  const thumb: string = (oembed as any)?.thumbnail_url || kkImageFallback?.url || '';
+  const thumb: string = (oembed as any)?.thumbnail_url || kkImageFallback?.url || crawlImageFallback || '';
   const author: string = (oembed as any)?.author_name || oembedAuthor;
   if (thumb) {
     const file = `igsavego_${shortcode}_${author}.jpg`;
