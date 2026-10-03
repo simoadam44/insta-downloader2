@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { CfContext, getEnv } from '../_lib/cf';
+import { CfContext } from '../_lib/cf';
+import { getSbConfig, sbList } from '../_lib/supabase';
 
 // GET /api/sitemap (served publicly as /sitemap.xml via _redirects 200-rewrite)
 // Always-fresh XML (Supabase keywords + guides), in-memory cache per isolate.
@@ -52,20 +52,16 @@ export async function onRequest(context: CfContext): Promise<Response> {
   let keywords: { slug: string }[] = [];
   let guides: { slug: string; updatedAt?: string }[] = [];
   try {
-    const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-    const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
-    if (url && key) {
-      const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    const cfg = getSbConfig(env);
+    if (cfg) {
       const [kw, gd] = await Promise.all([
-        sb.from('keyword_pages').select('slug').eq('enabled', true),
-        sb.from('guide_articles').select('slug,updated_at').eq('enabled', true),
+        sbList(cfg, 'keyword_pages', { select: 'slug', eq: { enabled: true } }),
+        sbList(cfg, 'guide_articles', { select: 'slug,updated_at', eq: { enabled: true } }),
       ]);
-      if (kw.data) keywords = kw.data.filter((r: any) => r.slug).map((r: any) => ({ slug: String(r.slug) }));
-      if (gd.data) {
-        guides = gd.data
-          .filter((r: any) => r.slug)
-          .map((r: any) => ({ slug: String(r.slug), updatedAt: r.updated_at || undefined }));
-      }
+      keywords = kw.filter((r: any) => r.slug).map((r: any) => ({ slug: String(r.slug) }));
+      guides = gd
+        .filter((r: any) => r.slug)
+        .map((r: any) => ({ slug: String(r.slug), updatedAt: r.updated_at || undefined }));
     }
   } catch {}
 

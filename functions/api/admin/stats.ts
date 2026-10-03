@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { CfContext, getEnv, json, unauthorized, verifyAdminToken } from '../../_lib/cf';
+import { getSbConfig, sbCount } from '../../_lib/supabase';
 
 // GET /api/admin/stats (Bearer) -> dashboard stats.
 // Traffic counters are best-effort on the edge (no shared memory), so they
@@ -15,13 +15,8 @@ export async function onRequest(context: CfContext): Promise<Response> {
 
   let keywordCount = 0;
   try {
-    const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-    const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
-    if (url && key) {
-      const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-      const { count } = await sb.from('keyword_pages').select('id', { count: 'exact', head: true });
-      if (typeof count === 'number') keywordCount = count;
-    }
+    const cfg = getSbConfig(env);
+    if (cfg) keywordCount = await sbCount(cfg, 'keyword_pages');
   } catch {}
 
   return json(

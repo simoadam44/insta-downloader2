@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { CfContext, checkRateLimit, getEnv, json, unauthorized, verifyAdminToken } from '../_lib/cf';
+import { getSbConfig, sbGetOne, sbUpsert } from '../_lib/supabase';
 
 // Shared dashboard settings (singleton row id='global').
 //   GET    /api/site-settings  -> public read (visitors + admin)
@@ -130,24 +130,25 @@ export async function onRequest(context: CfContext): Promise<Response> {
     return json({ error: 'Too many requests. Please wait a minute.' }, 429, noStore);
   }
 
-  const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-  const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
-  if (!url || !key) {
+  const cfg = getSbConfig(env);
+  if (!cfg) {
     return json({ error: 'Settings database not configured.', supabase: false }, 503, noStore);
   }
-  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const secret = getEnv(env, 'SESSION_SECRET');
 
   try {
     if (request.method === 'GET') {
-      const { data, error } = await sb
-        .from('site_settings')
-        .select('branding, seo_tracking, ads, api, seo_overrides')
-        .eq('id', 'global')
-        .maybeSingle();
-      if (error || !data) {
-        const detail = error ? `${error.code || 'ERR'}: ${String(error.message || '').substring(0, 160)}` : 'empty row';
-        return json({ error: 'Failed to load site settings.', detail }, 500, noStore);
+      let data: any | null;
+      try {
+        data = await sbGetOne(cfg, 'site_settings', {
+          select: 'branding,seo_tracking,ads,api,seo_overrides',
+          eq: { id: 'global' },
+        });
+      } catch (e: any) {
+        return json({ error: 'Failed to load site settings.', detail: String(e?.message || e).substring(0, 160) }, 500, noStore);
+      }
+      if (!data) {
+        return json({ error: 'Failed to load site settings.', detail: 'empty row' }, 500, noStore);
       }
       return json(
         {
@@ -171,21 +172,20 @@ export async function onRequest(context: CfContext): Promise<Response> {
       if (Object.keys(partial).length === 0) {
         return json({ error: 'No valid settings provided.' }, 400, noStore);
       }
-      const { data: current } = await sb
-        .from('site_settings')
-        .select('branding, seo_tracking, ads, api, seo_overrides')
-        .eq('id', 'global')
-        .maybeSingle();
+      const current = (await sbGetOne(cfg, 'site_settings', {
+        select: 'branding,seo_tracking,ads,api,seo_overrides',
+        eq: { id: 'global' },
+      }).catch(() => null)) as any;
       const row: Record<string, any> = { id: 'global' };
       if (partial.branding !== undefined) row.branding = { ...((current as any)?.branding || {}), ...partial.branding };
       if (partial.seoTracking !== undefined) row.seo_tracking = { ...((current as any)?.seo_tracking || {}), ...partial.seoTracking };
       if (partial.ads !== undefined) row.ads = { ...((current as any)?.ads || {}), ...partial.ads };
       if (partial.api !== undefined) row.api = { ...((current as any)?.api || {}), ...partial.api };
       if (partial.seoOverrides !== undefined) row.seo_overrides = { ...((current as any)?.seo_overrides || {}), ...partial.seoOverrides };
-      const { error } = await sb.from('site_settings').upsert(row, { onConflict: 'id' });
-      if (error) {
-        const detail = `${error.code || 'ERR'}: ${String(error.message || '').substring(0, 160)}`;
-        return json({ error: 'Failed to save site settings.', detail }, 500, noStore);
+      try {
+        await sbUpsert(cfg, 'site_settings', row, 'id');
+      } catch (e: any) {
+        return json({ error: 'Failed to save site settings.', detail: String(e?.message || e).substring(0, 160) }, 500, noStore);
       }
       return json({ success: true }, 200, noStore);
     }

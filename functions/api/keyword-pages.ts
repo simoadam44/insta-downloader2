@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { CfContext, checkRateLimit, getEnv, json, unauthorized, verifyAdminToken } from '../_lib/cf';
+import { getSbConfig, sbDelete, sbList, sbUpsert } from '../_lib/supabase';
 
 // Keyword pages API (Supabase-backed, public to all visitors).
 //   GET    /api/keyword-pages            -> enabled pages (public)
@@ -59,12 +59,10 @@ export async function onRequest(context: CfContext): Promise<Response> {
     return json({ error: 'Too many requests. Please wait a minute.' }, 429, noStore);
   }
 
-  const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-  const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
-  if (!url || !key) {
+  const cfg = getSbConfig(env);
+  if (!cfg) {
     return json({ error: 'Keyword database not configured.', supabase: false }, 503, noStore);
   }
-  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const secret = getEnv(env, 'SESSION_SECRET');
   const q = new URL(request.url).searchParams;
 
@@ -75,10 +73,14 @@ export async function onRequest(context: CfContext): Promise<Response> {
         const auth = await verifyAdminToken(request.headers.get('authorization'), secret);
         if (!auth.valid) return unauthorized();
       }
-      let query = sb.from('keyword_pages').select('*').order('created_at', { ascending: true });
-      if (!all) query = query.eq('enabled', true);
-      const { data, error } = await query;
-      if (error || !data) return json({ error: 'Failed to load keyword pages.' }, 500, noStore);
+      const eq: Record<string, string | boolean> = {};
+      if (!all) eq.enabled = true;
+      let data: any[];
+      try {
+        data = await sbList(cfg, 'keyword_pages', { select: '*', eq, order: 'created_at.asc' });
+      } catch {
+        return json({ error: 'Failed to load keyword pages.' }, 500, noStore);
+      }
       return json(
         { pages: data.map(rowToPage) },
         200,
@@ -107,8 +109,11 @@ export async function onRequest(context: CfContext): Promise<Response> {
       if (!page.id || !page.slug || !page.targetKeyword || !page.title || !page.h1) {
         return json({ error: 'id, slug, targetKeyword, title and h1 are required.' }, 400, noStore);
       }
-      const { error } = await sb.from('keyword_pages').upsert(pageToRow(page), { onConflict: 'id' });
-      if (error) return json({ error: 'Failed to save keyword page.' }, 500, noStore);
+      try {
+        await sbUpsert(cfg, 'keyword_pages', pageToRow(page), 'id');
+      } catch {
+        return json({ error: 'Failed to save keyword page.' }, 500, noStore);
+      }
       return json({ success: true }, 200, noStore);
     }
 
@@ -119,8 +124,11 @@ export async function onRequest(context: CfContext): Promise<Response> {
       if (!id || id.length > 80) {
         return json({ error: 'Valid id is required.' }, 400, noStore);
       }
-      const { error } = await sb.from('keyword_pages').delete().eq('id', id);
-      if (error) return json({ error: 'Failed to delete keyword page.' }, 500, noStore);
+      try {
+        await sbDelete(cfg, 'keyword_pages', { id });
+      } catch {
+        return json({ error: 'Failed to delete keyword page.' }, 500, noStore);
+      }
       return json({ success: true }, 200, noStore);
     }
 

@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { CfContext, checkRateLimit, getEnv, json, unauthorized, verifyAdminToken } from '../_lib/cf';
+import { getSbConfig, sbDelete, sbList, sbUpsert } from '../_lib/supabase';
 
 // Guide articles API (Supabase-backed blog engine).
 //   GET    /api/guides            -> enabled guides (public)
@@ -90,12 +90,10 @@ export async function onRequest(context: CfContext): Promise<Response> {
     return json({ error: 'Too many requests. Please wait a minute.' }, 429, noStore);
   }
 
-  const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-  const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
-  if (!url || !key) {
+  const cfg = getSbConfig(env);
+  if (!cfg) {
     return json({ error: 'Guides database not configured.', supabase: false }, 503, noStore);
   }
-  const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const secret = getEnv(env, 'SESSION_SECRET');
   const q = new URL(request.url).searchParams;
 
@@ -106,10 +104,14 @@ export async function onRequest(context: CfContext): Promise<Response> {
         const auth = await verifyAdminToken(request.headers.get('authorization'), secret);
         if (!auth.valid) return unauthorized();
       }
-      let query = sb.from('guide_articles').select('*').order('created_at', { ascending: true });
-      if (!all) query = query.eq('enabled', true);
-      const { data, error } = await query;
-      if (error || !data) return json({ error: 'Failed to load guides.' }, 500, noStore);
+      const eq: Record<string, string | boolean> = {};
+      if (!all) eq.enabled = true;
+      let data: any[];
+      try {
+        data = await sbList(cfg, 'guide_articles', { select: '*', eq, order: 'created_at.asc' });
+      } catch {
+        return json({ error: 'Failed to load guides.' }, 500, noStore);
+      }
       return json(
         { guides: data.map(rowToGuide) },
         200,
@@ -142,8 +144,11 @@ export async function onRequest(context: CfContext): Promise<Response> {
       if (!guide.id || !guide.slug || !guide.title || !guide.h1) {
         return json({ error: 'id, slug, title and h1 are required.' }, 400, noStore);
       }
-      const { error } = await sb.from('guide_articles').upsert(guideToRow(guide), { onConflict: 'id' });
-      if (error) return json({ error: 'Failed to save guide.' }, 500, noStore);
+      try {
+        await sbUpsert(cfg, 'guide_articles', guideToRow(guide), 'id');
+      } catch {
+        return json({ error: 'Failed to save guide.' }, 500, noStore);
+      }
       return json({ success: true }, 200, noStore);
     }
 
@@ -154,8 +159,11 @@ export async function onRequest(context: CfContext): Promise<Response> {
       if (!id || id.length > 80) {
         return json({ error: 'Valid id is required.' }, 400, noStore);
       }
-      const { error } = await sb.from('guide_articles').delete().eq('id', id);
-      if (error) return json({ error: 'Failed to delete guide.' }, 500, noStore);
+      try {
+        await sbDelete(cfg, 'guide_articles', { id });
+      } catch {
+        return json({ error: 'Failed to delete guide.' }, 500, noStore);
+      }
       return json({ success: true }, 200, noStore);
     }
 
