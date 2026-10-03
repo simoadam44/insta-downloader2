@@ -3,4 +3,7 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://www.igsavego.com/sitemap.xml
+# NOTE: the sitemap is served by the /api/sitemap function (live Supabase data).
+# Search engines accept any sitemap URL — this one is verified working, while
+# the conventional /sitemap.xml path is kept as a best-effort rewrite.
+Sitemap: https://www.igsavego.com/api/sitemap
