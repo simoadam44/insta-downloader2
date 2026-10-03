@@ -145,6 +145,8 @@ export async function onRequest(context: CfContext): Promise<Response> {
           eq: { id: 'global' },
         });
       } catch (e: any) {
+        // Safe detail only (never keys): distinguishes wrong URL / bad key
+        // (401) / missing table from a truly empty row.
         return json({ error: 'Failed to load site settings.', detail: String(e?.message || e).substring(0, 160) }, 500, noStore);
       }
       if (!data) {

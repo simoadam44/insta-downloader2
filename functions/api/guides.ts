@@ -109,8 +109,8 @@ export async function onRequest(context: CfContext): Promise<Response> {
       let data: any[];
       try {
         data = await sbList(cfg, 'guide_articles', { select: '*', eq, order: 'created_at.asc' });
-      } catch {
-        return json({ error: 'Failed to load guides.' }, 500, noStore);
+      } catch (e: any) {
+        return json({ error: 'Failed to load guides.', detail: String(e?.message || e).substring(0, 160) }, 500, noStore);
       }
       return json(
         { guides: data.map(rowToGuide) },

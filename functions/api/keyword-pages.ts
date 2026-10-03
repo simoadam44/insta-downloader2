@@ -78,8 +78,10 @@ export async function onRequest(context: CfContext): Promise<Response> {
       let data: any[];
       try {
         data = await sbList(cfg, 'keyword_pages', { select: '*', eq, order: 'created_at.asc' });
-      } catch {
-        return json({ error: 'Failed to load keyword pages.' }, 500, noStore);
+      } catch (e: any) {
+        // Safe detail only (PostgREST code/message — never keys). Tells whether
+        // the URL is wrong, the key is invalid (401), or the table is missing.
+        return json({ error: 'Failed to load keyword pages.', detail: String(e?.message || e).substring(0, 160) }, 500, noStore);
       }
       return json(
         { pages: data.map(rowToPage) },
