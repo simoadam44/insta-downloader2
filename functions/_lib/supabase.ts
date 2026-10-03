@@ -11,10 +11,20 @@ export interface SbConfig {
 }
 
 export function getSbConfig(env: Record<string, string | undefined>): SbConfig | null {
-  const url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL');
-  const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY');
+  let url = getEnv(env, 'SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL').trim();
+  // Keys are single-line tokens: surrounding whitespace (a classic copy-paste
+  // accident from dashboards) always breaks auth, so drop it.
+  const key = getEnv(env, 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_SECRET_KEY').trim();
   if (!url || !key) return null;
-  return { url: url.replace(/\/+$/, ''), key };
+  try {
+    // Keep ONLY scheme + host: a frequent dashboard copy includes a trailing
+    // path (e.g. "...supabase.co/rest/v1" or a /dashboard/... page URL), which
+    // makes PostgREST reject every request with "PGRST125: Invalid path".
+    url = new URL(url).origin;
+  } catch {
+    url = url.replace(/\/+$/, '');
+  }
+  return { url, key };
 }
 
 function headers(key: string, extra?: Record<string, string>): Record<string, string> {
