@@ -5,6 +5,3 @@
 #    rewrite bypasses that normalization and answers 200 with the exact file.
 /sitemap.xml /api/sitemap 200
 /yandex_4778040ed943270f.html /api/yandex-verify 200
-# TEMP diagnostic: extensionless source. If THIS works while the two above do
-# not, the cause is extension handling in rule matching (to be removed after).
-/cf-test-12345 /api/yandex-verify 200
