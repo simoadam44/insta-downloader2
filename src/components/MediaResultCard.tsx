@@ -20,6 +20,7 @@ import {
 import { ExtractedMedia, LanguageCode, QualityOption } from '../types';
 import { UI_TRANSLATIONS } from '../data/i18nData';
 import { triggerBrowserDownload } from '../services/extractorService';
+import { TRANSCODED_MP3_KBPS, downloadBlob, transcodeVideoToMp3 } from '../services/audioTranscode';
 
 interface MediaResultCardProps {
   media: ExtractedMedia;
@@ -111,9 +112,18 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
     const audioUrl = media.audioTrack?.audioUrl || (currentItem.type === 'video' ? currentItem.downloadUrl : '');
     if (!audioUrl) return;
     setDownloadingQualityId('audio');
-    const filename = `igsavego_audio_${media.author.username}_320kbps.mp3`;
-    await triggerBrowserDownload(audioUrl, filename);
-    setDownloadingQualityId(null);
+    const filename = `igsavego_audio_${media.author.username}_${TRANSCODED_MP3_KBPS}kbps.mp3`;
+    try {
+      // Genuine audio-only MP3 (decode + re-encode in-browser).
+      const mp3 = await transcodeVideoToMp3(audioUrl);
+      await downloadBlob(mp3, filename);
+    } catch {
+      // Fallback preserves the old behavior: the original file, so the user
+      // still gets something even when in-browser conversion is impossible.
+      await triggerBrowserDownload(audioUrl, filename);
+    } finally {
+      setDownloadingQualityId(null);
+    }
   };
 
   const handleCopyLink = () => {
@@ -360,7 +370,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                     </div>
                     <div className="truncate">
                       <div className="font-bold text-purple-950 truncate">{media.audioTrack?.title || `Audio • @${media.author.username}`}</div>
-                      <div className="text-[11px] text-purple-700 truncate">{media.audioTrack?.artist || media.author.username} • 320 kbps MP3</div>
+                      <div className="text-[11px] text-purple-700 truncate">{media.audioTrack?.artist || media.author.username} • {TRANSCODED_MP3_KBPS} kbps MP3</div>
                     </div>
                   </div>
                   <button
@@ -370,7 +380,15 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                     className="ml-2 shrink-0 flex items-center gap-1.5 rounded-xl bg-purple-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-purple-700 transition-colors shadow-2xs cursor-pointer"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    <span>{isArabic ? 'تحميل MP3' : 'Audio MP3'}</span>
+                    <span>
+                      {downloadingQualityId === 'audio'
+                        ? isArabic
+                          ? 'جاري تحويل الصوت…'
+                          : 'Converting audio…'
+                        : isArabic
+                          ? 'تحميل MP3'
+                          : 'Audio MP3'}
+                    </span>
                   </button>
                 </div>
               )}
