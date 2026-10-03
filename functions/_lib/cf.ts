@@ -24,6 +24,13 @@ export function getEnv(env: Record<string, string | undefined>, ...names: string
 }
 
 // ---- base64 (standard alphabet, ASCII-safe payloads like our tokens) ----
+export function b64encode(input: string): string {
+  const bytes = new TextEncoder().encode(input);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 export function b64decode(input: string): string | null {
   try {
     const bin = atob(input.trim());
