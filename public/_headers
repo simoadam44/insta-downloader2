@@ -1,0 +1,10 @@
+# Security headers for every response (mirrors the previous vercel.json).
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+
+# Long-lived immutable caching for versioned build assets.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -1,0 +1,7 @@
+# Cloudflare Pages routing (200 = internal rewrite, URL stays unchanged).
+# 1. Dynamic sitemap (Supabase live) served on the canonical /sitemap.xml URL.
+# 2. Yandex ownership file on its EXACT verification URL: Pages normalizes
+#    "*.html" to extensionless with a 308, which breaks verification — this
+#    rewrite bypasses that normalization and answers 200 with the exact file.
+/sitemap.xml /api/sitemap 200
+/yandex_4778040ed943270f.html /api/yandex-verify 200
