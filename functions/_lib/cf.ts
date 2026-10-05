@@ -105,6 +105,23 @@ export function checkRateLimit(req: Request, scope: string, max: number, windowM
   return false;
 }
 
+// Search-engine crawler detection (Googlebot, Bingbot, Yandex, etc.).
+// Used ONLY to grant a higher rate-limit quota on cheap public READ endpoints
+// (content JSON, sitemap). NEVER for expensive/authenticated/write paths
+// (extract, proxy-media, admin, AI, PUT/POST/DELETE) — those stay strict for
+// every caller. UA spoofing gains at most 5x public-read quota per IP over the
+// same public data anyone can fetch, so there is no real abuse vector.
+const CRAWLER_UA_RE = /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|yandexbot|sogou|exabot|facebot|ia_archiver|applebot/i;
+
+export function isSearchCrawler(req: Request): boolean {
+  try {
+    const ua = req.headers.get('user-agent') || '';
+    return ua.length > 0 && ua.length <= 300 && CRAWLER_UA_RE.test(ua);
+  } catch {
+    return false;
+  }
+}
+
 // Spoof-resistant client IP: cf-connecting-ip is set by Cloudflare itself.
 export function getClientIp(req: Request): string {
   const h = req.headers;

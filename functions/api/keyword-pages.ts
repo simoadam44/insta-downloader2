@@ -1,4 +1,4 @@
-import { CfContext, checkRateLimit, getEnv, json, unauthorized, verifyAdminToken } from '../_lib/cf';
+import { CfContext, checkRateLimit, getEnv, isSearchCrawler, json, unauthorized, verifyAdminToken } from '../_lib/cf';
 import { getSbConfig, sbDelete, sbList, sbUpsert } from '../_lib/supabase';
 
 // Keyword pages API (Supabase-backed, public to all visitors).
@@ -55,7 +55,10 @@ function pageToRow(p: KeywordToolPage): Record<string, any> {
 export async function onRequest(context: CfContext): Promise<Response> {
   const { request, env } = context;
   const noStore = { 'Cache-Control': 'no-store' };
-  if (checkRateLimit(request, 'keywords', 120, 60 * 1000)) {
+  // Crawlers get 5x quota on GET (public content reads) so aggressive indexing
+  // never hits 429s; writes and all other callers keep the strict quota.
+  const readBoost = request.method === 'GET' && isSearchCrawler(request);
+  if (checkRateLimit(request, 'keywords', readBoost ? 600 : 120, 60 * 1000)) {
     return json({ error: 'Too many requests. Please wait a minute.' }, 429, noStore);
   }
 

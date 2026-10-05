@@ -3,4 +3,37 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
+# Explicit crawler sections (same rules as above, stated per engine so each
+# bot — Google, Bing, DuckDuckGo, Baidu, Yandex — parses its own block
+# without ambiguity; nothing here changes what * allows).
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Slurp
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: DuckDuckBot
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Baiduspider
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+User-agent: Yandex
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
 Sitemap: https://www.igsavego.com/sitemap.xml

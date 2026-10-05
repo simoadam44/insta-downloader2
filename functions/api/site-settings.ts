@@ -1,4 +1,4 @@
-import { CfContext, checkRateLimit, getEnv, json, unauthorized, verifyAdminToken } from '../_lib/cf';
+import { CfContext, checkRateLimit, getEnv, isSearchCrawler, json, unauthorized, verifyAdminToken } from '../_lib/cf';
 import { getSbConfig, sbGetOne, sbUpsert } from '../_lib/supabase';
 
 // Shared dashboard settings (singleton row id='global').
@@ -126,7 +126,10 @@ function sanitizePartial(body: any): Record<string, any> {
 export async function onRequest(context: CfContext): Promise<Response> {
   const { request, env } = context;
   const noStore = { 'Cache-Control': 'no-store' };
-  if (checkRateLimit(request, 'site-settings', 120, 60 * 1000)) {
+  // Crawlers get 5x quota on GET (public settings read) so aggressive indexing
+  // never hits 429s; writes and all other callers keep the strict quota.
+  const readBoost = request.method === 'GET' && isSearchCrawler(request);
+  if (checkRateLimit(request, 'site-settings', readBoost ? 600 : 120, 60 * 1000)) {
     return json({ error: 'Too many requests. Please wait a minute.' }, 429, noStore);
   }
 
