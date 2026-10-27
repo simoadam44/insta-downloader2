@@ -11,15 +11,15 @@ let cached: { xml: string; expires: number; origin: string } | null = null;
 
 const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 'story-saver', 'highlights-downloader'];
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
-const FALLBACK_ORIGIN = 'https://igsavego.com';
+const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 
 // Host allowlist: prevents Host-header poisoning of cached canonical URLs.
-// The production canonical host is non-www (www 301s to it), so both production
-// hostnames collapse to https://igsavego.com.
+// The primary canonical host is www (the apex 301s there), so both production
+// hostnames collapse to https://www.igsavego.com.
 function resolveOrigin(req: VercelRequest): string {
   const raw = ((req.headers['x-forwarded-host'] as string) || (req.headers.host as string) || '').split(',')[0].trim().toLowerCase();
   if (raw === 'www.igsavego.com' || raw === 'igsavego.com') {
-    return 'https://igsavego.com';
+    return 'https://www.igsavego.com';
   }
   if (raw.endsWith('.vercel.app') || raw.startsWith('localhost')) {
     const proto = (req.headers['x-forwarded-proto'] as string) || 'https';

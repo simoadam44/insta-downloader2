@@ -3,20 +3,20 @@ import { SUPPORTED_LANGUAGES, TOOL_CONTENT, TOOL_SLUGS } from '../data/i18nData'
 import { buildKeywordFaqs, loadKeywordPages } from '../data/keywordPages';
 import { loadGuides } from '../data/guides';
 
-// Production canonical host is non-www: https://www.igsavego.com 301s to
-// https://igsavego.com. Older settings may still store the www host, so every
-// generated canonical/hreflang/schema URL is normalized through this helper.
+// Primary canonical host is https://www.igsavego.com (the apex 301s there).
+// Older settings may still store the apex host, so every generated canonical,
+// hreflang and schema URL is normalized through this helper.
 export function normalizeOrigin(origin: string | undefined): string {
   const raw = (origin || '').trim().replace(/\/+$/, '');
-  if (!raw) return 'https://igsavego.com';
-  if (/^https?:\/\/(www\.)?igsavego\.com$/i.test(raw)) return 'https://igsavego.com';
+  if (!raw) return 'https://www.igsavego.com';
+  if (/^https?:\/\/(www\.)?igsavego\.com$/i.test(raw)) return 'https://www.igsavego.com';
   return raw;
 }
 
 function resolveOrigin(tracking?: Partial<SeoTrackingSettings>): string {
   const customOrigin = tracking?.canonicalBaseUrl?.trim();
   if (customOrigin) return normalizeOrigin(customOrigin);
-  return normalizeOrigin(typeof window !== 'undefined' ? window.location.origin : 'https://igsavego.com');
+  return normalizeOrigin(typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
 }
 
 export function updateDocumentSeo(
@@ -658,7 +658,7 @@ function updateStructuredDataSchemas(
 }
 
 // Generate dynamic sitemap.xml string for all tools and languages
-export function generateDynamicSitemapXml(origin: string = 'https://igsavego.com'): string {
+export function generateDynamicSitemapXml(origin: string = 'https://www.igsavego.com'): string {
   origin = normalizeOrigin(origin);
   const today = new Date().toISOString().split('T')[0];
   const tools: MediaType[] = ['video', 'photo', 'reels', 'story', 'highlights'];

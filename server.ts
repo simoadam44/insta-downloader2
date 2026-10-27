@@ -416,10 +416,10 @@ app.get('/sitemap.xml', async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.send(sitemapCache.xml);
     }
-    const rawHost = (req.headers.host as string) || 'igsavego.com';
-    // Canonical host is non-www (www 301s to it), so the sitemap must never
-    // advertise a redirecting host even if the request arrived on www.
-    const host = rawHost.replace(/^www\./i, '');
+    const rawHost = (req.headers.host as string) || 'www.igsavego.com';
+    // Primary canonical host is www (the apex 301s there), so the sitemap must
+    // never advertise the apex host even if the request arrived on it.
+    const host = /^igsavego\.com$/i.test(rawHost) ? `www.${rawHost}` : rawHost;
     const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
     const origin = `${proto}://${host}`;
     const [kw, gd] = await Promise.all([listKeywordPages(true), listGuides(true)]);

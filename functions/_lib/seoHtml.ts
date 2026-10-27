@@ -1,4 +1,5 @@
-// Dependency-free helpers that put per-route SEO tags into the RAW HTML shell.//
+// Dependency-free helpers that put per-route SEO tags into the RAW HTML shell.
+//
 // Why this exists: the site is a client-rendered SPA, so every URL used to be
 // served the exact same <head> (homepage title + homepage canonical). That made
 // every subpage look like a duplicate of the homepage to crawlers that read the
@@ -9,7 +10,11 @@
 // Kept inside functions/_lib so Cloudflare's Pages Functions bundler never has
 // to resolve imports from outside the functions directory.
 
-export const PRODUCTION_ORIGIN = 'https://igsavego.com';
+// Primary canonical host. The apex 301s here (see resolveCanonicalRedirect),
+// so every canonical, og:url, sitemap and schema URL must use this origin.
+export const PRODUCTION_ORIGIN = 'https://www.igsavego.com';
+export const PRODUCTION_HOST = 'www.igsavego.com';
+export const APEX_HOST = 'igsavego.com';
 
 export const LANGUAGE_CODES = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'] as const;
 export type LanguageCode = (typeof LANGUAGE_CODES)[number];
@@ -55,7 +60,7 @@ function safeDecode(value: string): string {
 
 /**
  * Canonical origin for the current request.
- * - Production (igsavego.com / www / previews / anything else) -> non-www.
+ * - Production (apex / www / previews / anything else) -> https://www.igsavego.com
  * - Local development keeps its own origin so local previews stay self-contained.
  */
 export function resolveCanonicalOrigin(url: URL): string {
@@ -64,6 +69,71 @@ export function resolveCanonicalOrigin(url: URL): string {
     return url.origin;
   }
   return PRODUCTION_ORIGIN;
+}
+
+/**
+ * Validated canonical origin used to build redirect targets.
+ * An optional CANONICAL_ORIGIN / SITE_URL override is accepted ONLY when it is
+ * an HTTPS igsavego.com URL; anything missing, malformed or foreign falls back
+ * to the hard-coded production origin. A bad env value can therefore never
+ * send traffic (or search engines) to another site.
+ */
+export function resolveCanonicalBase(env?: Record<string, string | undefined>): string {
+  const configured = (env?.CANONICAL_ORIGIN || env?.SITE_URL || '').trim();
+  if (!configured) return PRODUCTION_ORIGIN;
+  try {
+    const parsed = new URL(configured);
+    const host = parsed.hostname.toLowerCase();
+    if (parsed.protocol === 'https:' && (host === PRODUCTION_HOST || host === APEX_HOST)) {
+      return PRODUCTION_ORIGIN;
+    }
+  } catch {
+    /* fall through to the safe default */
+  }
+  return PRODUCTION_ORIGIN;
+}
+
+/**
+ * Permanent canonical-host redirect (HTTP 301).
+ *
+ * - https://igsavego.com/*            -> https://www.igsavego.com/*  (path + query kept)
+ * - http://www.igsavego.com/*         -> https://www.igsavego.com/*  (if the Worker sees HTTP)
+ * - http://igsavego.com/*             -> https://www.igsavego.com/*  (single hop when Worker-visible)
+ * - https://www.igsavego.com/*        -> untouched (no loop)
+ * - previews, localhost, lookalikes   -> untouched
+ * - /api/* and non-GET/HEAD           -> untouched (downloader/API safety)
+ */
+export function resolveCanonicalRedirect(
+  url: URL,
+  method: string,
+  env?: Record<string, string | undefined>
+): Response | null {
+  if (method !== 'GET' && method !== 'HEAD') return null;
+
+  const host = url.hostname.toLowerCase();
+  const isApex = host === APEX_HOST;
+  const isCanonicalWww = host === PRODUCTION_HOST;
+  if (!isApex && !isCanonicalWww) return null;
+  // Already on the canonical host over HTTPS: never redirect again.
+  if (isCanonicalWww && url.protocol === 'https:') return null;
+
+  // API traffic is host-agnostic: some clients do not follow 301s, and the
+  // downloader must keep working on whichever host called it.
+  if (url.pathname === '/api' || url.pathname.startsWith('/api/')) return null;
+
+  // Assign pathname/search on a parsed URL instead of resolving a relative
+  // string: a pathname beginning with "//" must never become a new host.
+  const target = new URL(resolveCanonicalBase(env));
+  target.pathname = url.pathname;
+  target.search = url.search;
+
+  return new Response(null, {
+    status: 301,
+    headers: {
+      Location: target.toString(),
+      'Cache-Control': 'public, max-age=3600',
+    },
+  });
 }
 
 /** Classify a URL pathname without touching the router or redirecting anything. */

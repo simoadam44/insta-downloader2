@@ -49,7 +49,7 @@ const DEFAULT_SEO_TRACKING: SeoTrackingSettings = {
   customHeadCode: '',
   customBodyCode: '',
   enableRobotsIndex: true,
-  canonicalBaseUrl: 'https://igsavego.com',
+  canonicalBaseUrl: 'https://www.igsavego.com',
 };
 
 const DEFAULT_AD_SETTINGS: AdSettings = {

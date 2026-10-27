@@ -1324,7 +1324,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={localSeoTracking.canonicalBaseUrl}
                     onChange={(e) => setLocalSeoTracking({ ...localSeoTracking, canonicalBaseUrl: e.target.value })}
-                    placeholder="https://igsavego.com"
+                    placeholder="https://www.igsavego.com"
                     className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3.5 py-2 text-xs text-white placeholder:text-slate-600 focus:border-rose-500 focus:outline-hidden"
                   />
                 </div>

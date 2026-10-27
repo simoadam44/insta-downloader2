@@ -1,11 +1,14 @@
-// Pages Functions middleware: per-route SEO tags + exact-path SEO files + guards.
+// Pages Functions middleware: canonical-host redirect + per-route SEO tags.
 //
-// 1. Serves /sitemap.xml and the Yandex verification file with HTTP 200 on
+// 1. Sends the apex host to https://www.igsavego.com with a permanent 301
+//    before any routing, asset or SEO work happens (GET/HEAD only, API and
+//    non-GET/HEAD untouched).
+// 2. Serves /sitemap.xml and the Yandex verification file with HTTP 200 on
 //    their EXACT URLs (the _redirects 200-rewrites proved unreliable here).
-// 2. Rewrites the SPA shell's <head> per route so the FIRST response carries
+// 3. Rewrites the SPA shell's <head> per route so the FIRST response carries
 //    the correct canonical / og:url / title / description — not the homepage's.
 //    A client-rendered app otherwise serves identical metadata on every URL.
-// 3. Keeps STAGING (*.pages.dev) and /admin out of search indexes via
+// 4. Keeps STAGING (*.pages.dev) and /admin out of search indexes via
 //    `X-Robots-Tag: noindex, nofollow`.
 // Bodies (including media streams and JSON APIs) pass through untouched.
 import { resolvePageHeadMeta } from './_lib/pageMeta';
@@ -15,6 +18,7 @@ import {
   isRewritableHtml,
   prepareRewrittenHeaders,
   resolveCanonicalOrigin,
+  resolveCanonicalRedirect,
 } from './_lib/seoHtml';
 
 interface MiddlewareContext {
@@ -25,6 +29,13 @@ interface MiddlewareContext {
 
 export async function onRequest(context: MiddlewareContext): Promise<Response> {
   const url = new URL(context.request.url);
+
+  // Canonical host wins over everything: apex -> https://www.igsavego.com.
+  // Implemented before SEO files/routing so /sitemap.xml and static assets on
+  // the apex cannot bypass it. Returns null on the canonical host and for
+  // previews/localhost, so there is no loop.
+  const canonicalRedirect = resolveCanonicalRedirect(url, context.request.method, context.env);
+  if (canonicalRedirect) return canonicalRedirect;
 
   // Exact-path SEO files (GET only — everything else falls through).
   if (context.request.method === 'GET') {

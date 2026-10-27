@@ -10,14 +10,14 @@ let cached: { xml: string; expires: number; origin: string } | null = null;
 
 const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 'story-saver', 'highlights-downloader'];
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
-const FALLBACK_ORIGIN = 'https://igsavego.com';
+const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 
 export function resolveSeoOrigin(hostname: string): string {
   const raw = (hostname || '').toLowerCase();
-  // Canonical host is non-www: https://www.igsavego.com 301s to https://igsavego.com,
-  // so a www sitemap would advertise redirecting URLs.
+  // Primary canonical host is www: the apex 301s to it, so a sitemap must
+  // never advertise the redirecting apex host.
   if (raw === 'www.igsavego.com' || raw === 'igsavego.com') {
-    return 'https://igsavego.com';
+    return 'https://www.igsavego.com';
   }
   if (raw.endsWith('.pages.dev') || raw.startsWith('localhost')) {
     return `https://${raw}`;

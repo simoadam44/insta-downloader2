@@ -36,4 +36,4 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://igsavego.com/sitemap.xml
+Sitemap: https://www.igsavego.com/sitemap.xml
