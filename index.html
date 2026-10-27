@@ -3,22 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>IGSaveGo - Instagram Video, Reels & Story Downloader</title>
-    <meta name="description" content="Fast, free, and anonymous online Instagram Downloader. Save Instagram videos, reels, photos, stories, and highlights in high-definition 1080p MP4 and JPG." />
-    <meta property="og:title" content="IGSaveGo - Instagram Video, Reels & Story Downloader" />
-    <meta property="og:description" content="Fast, free, and anonymous online Instagram Downloader. Save Instagram videos, reels, photos, stories, and highlights in high-definition 1080p MP4 and JPG." />
+    <title>Instagram Video Downloader – Save Reels &amp; Videos in HD</title>
+    <meta name="description" content="Download Instagram videos and Reels as MP4 in HD. Paste a public link and save it to your phone or computer in seconds." />
+    <meta property="og:title" content="Instagram Video Downloader – Save Reels &amp; Videos in HD" />
+    <meta property="og:description" content="Download Instagram videos and Reels as MP4 in HD. Paste a public link and save it to your phone or computer in seconds." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="IGSaveGo" />
-    <meta property="og:url" content="https://www.igsavego.com/" />
 
     <!-- ===== Crawl directives (static, NOT JavaScript-dependent) =====
          These must exist in the served HTML: this is a SPA, so Googlebot's
          first fetch only sees this file. Without them here, indexing depends
          entirely on JavaScript rendering (slower + far less reliable).
-         The runtime code (src/services/seoEngine.ts) reuses and updates these
-         exact tags per route via querySelector, so nothing is duplicated. -->
+         NOTE: <link rel="canonical"> and og:url are intentionally NOT static
+         because one shell is served for every route. They are injected per
+         route into the first HTML response by functions/_middleware.ts on
+         Cloudflare Pages (and by server.ts when self-hosting), so a subpage
+         can never inherit the homepage canonical. -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-    <link rel="canonical" href="https://www.igsavego.com/" />
 
     <!-- ===== Yandex Webmaster ownership verification (static meta tag) =====
          Read by Yandex directly from the served HTML — no JavaScript and no
@@ -40,16 +41,18 @@
       gtag('config', 'G-LWXLE5CQD4');
     </script>
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="IGSaveGo - Instagram Downloader" />
-    <meta name="twitter:description" content="Download Instagram videos, reels, photos, stories, and highlights in Full HD." />
+    <meta name="twitter:title" content="Instagram Video Downloader – Save Reels &amp; Videos in HD" />
+    <meta name="twitter:description" content="Download Instagram videos and Reels as MP4 in HD. Paste a public link and save it to your phone or computer in seconds." />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e1306c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect width='20' height='20' x='2' y='2' rx='5' ry='5'/><path d='M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z'/><line x1='17.5' x2='17.51' y1='6.5' y2='6.5'/></svg>" />
-    <!-- Structured Data JSON-LD WebApplication -->
-    <script type="application/ld+json" id="web-application-schema">
+    <!-- Structured Data JSON-LD WebApplication.
+         data-schema-type lets the runtime SEO engine replace this tag instead
+         of appending a second WebApplication schema on tool pages. -->
+    <script type="application/ld+json" id="web-application-schema" data-schema-type="WebApplication">
     {
       "@context": "https://schema.org",
       "@type": "WebApplication",
       "name": "IGSaveGo",
-      "url": "https://www.igsavego.com",
+      "url": "https://igsavego.com",
       "applicationCategory": "MultimediaApplication",
       "operatingSystem": "All",
       "description": "Download Instagram Videos, Reels, Stories, Highlights, and Photos anonymously in HD.",

@@ -13,7 +13,7 @@ export const DynamicSitemapModal: React.FC<DynamicSitemapModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const sitemapXml = generateDynamicSitemapXml(
-    typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com'
+    typeof window !== 'undefined' ? window.location.origin : 'https://igsavego.com'
   );
 
   if (!isOpen) return null;

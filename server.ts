@@ -1,10 +1,16 @@
+// Load .env BEFORE any other import so module-level env reads see local values.
+// (Vercel/containers set real env vars; dotenv never overrides those.)
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import path from 'path';
 import crypto from 'crypto';
+import { readFile } from 'fs/promises';
 // NOTE: vite is lazy-imported inside startServer() (dev only) so the
 // production bundle (dist/server.cjs) has zero dev-dependency requires
 // and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
 import { buildSitemapXml } from './lib/sitemapBuilder';
+import { resolvePageHeadMeta } from './functions/_lib/pageMeta';
+import { injectSeoHead, resolveCanonicalOrigin } from './functions/_lib/seoHtml';
 import {
   deleteGuide,
   deleteKeywordPage,
@@ -410,7 +416,10 @@ app.get('/sitemap.xml', async (req: Request, res: Response) => {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       return res.send(sitemapCache.xml);
     }
-    const host = (req.headers.host as string) || 'www.igsavego.com';
+    const rawHost = (req.headers.host as string) || 'igsavego.com';
+    // Canonical host is non-www (www 301s to it), so the sitemap must never
+    // advertise a redirecting host even if the request arrived on www.
+    const host = rawHost.replace(/^www\./i, '');
     const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
     const origin = `${proto}://${host}`;
     const [kw, gd] = await Promise.all([listKeywordPages(true), listGuides(true)]);
@@ -2032,14 +2041,56 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req: Request, res: Response) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    const indexPath = path.join(distPath, 'index.html');
+    let indexHtmlPromise: Promise<string> | null = null;
+    const loadIndexHtml = (): Promise<string> => {
+      if (!indexHtmlPromise) indexHtmlPromise = readFile(indexPath, 'utf8');
+      return indexHtmlPromise;
+    };
+
+    // index:false → "/" reaches the HTML handler below so the first response
+    // carries the homepage's own canonical instead of a bare shell.
+    app.use(express.static(distPath, { index: false }));
+
+    app.get('*', async (req: Request, res: Response) => {
+      try {
+        const html = await loadIndexHtml();
+        const requestUrl = new URL(req.originalUrl || '/', `${req.protocol}://${req.get('host') || 'localhost'}`);
+        const meta = await resolvePageHeadMeta(req.path, process.env, resolveCanonicalOrigin(requestUrl));
+        if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+          res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        return res.status(200).send(meta ? injectSeoHead(html, meta) : html);
+      } catch {
+        return res.sendFile(indexPath);
+      }
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[IGSaveGo Server] Running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    const localUrl = `http://localhost:${PORT}`;
+    console.log(`[IGSaveGo Server] Running on ${localUrl} (bound to 0.0.0.0:${PORT})`);
+    if (!IS_PROD) {
+      const devPassword = process.env.ADMIN_PASSWORD ? 'set via ADMIN_PASSWORD' : 'admin123 (dev fallback)';
+      console.log(`[IGSaveGo Server] Local preview ready -> ${localUrl}`);
+      console.log(`[IGSaveGo Server] Admin panel -> ${localUrl}/admin  (password: ${devPassword})`);
+    }
+  });
+
+  // A busy port is the most common local-preview failure: explain it instead of
+  // dumping a raw stack trace that looks like the app is broken.
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(
+        `[IGSaveGo Server] Port ${PORT} is already in use. Stop the other process or pick another port:\n` +
+        `  PowerShell:  $env:PORT=3001; npm run dev\n` +
+        `  CMD:         set PORT=3001 && npm run dev`
+      );
+      process.exit(1);
+    }
+    throw err;
   });
 }
 

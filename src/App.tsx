@@ -49,7 +49,7 @@ const DEFAULT_SEO_TRACKING: SeoTrackingSettings = {
   customHeadCode: '',
   customBodyCode: '',
   enableRobotsIndex: true,
-  canonicalBaseUrl: 'https://www.igsavego.com',
+  canonicalBaseUrl: 'https://igsavego.com',
 };
 
 const DEFAULT_AD_SETTINGS: AdSettings = {
@@ -332,8 +332,23 @@ export default function App() {
     const key = `${tool}_${lang}`;
     const customContent = seoOverrides[key];
 
+    // The root URL is the homepage in its own right; without this it would
+    // canonicalize to /en/video-downloader and disappear from the sitemap's
+    // canonical set. Pushed navigations always canonicalize to the tool URL.
+    const isHomeRequest =
+      !pushHistory &&
+      typeof window !== 'undefined' &&
+      (window.location.pathname === '/' || window.location.pathname === '');
+
     // Update metadata, canonical, and Schema.org with dynamic brand name
-    updateDocumentSeo(lang, tool, customContent, brandingSettings);
+    updateDocumentSeo(
+      lang,
+      tool,
+      customContent,
+      brandingSettings,
+      seoTrackingSettings,
+      isHomeRequest ? '/' : undefined
+    );
 
     if (pushHistory && typeof window !== 'undefined') {
       const newPath = `/${lang}/${slug}`;
@@ -341,7 +356,7 @@ export default function App() {
         window.history.pushState(null, '', newPath);
       }
     }
-  }, [seoOverrides, brandingSettings]);
+  }, [seoOverrides, brandingSettings, seoTrackingSettings]);
 
   // Shared guides list (Supabase) refresh on mount for every visitor.
   const [sharedGuidesReady, setSharedGuidesReady] = useState(false);
@@ -365,7 +380,7 @@ export default function App() {
           return;
         }
       } else {
-        updateBlogHubSeo(currentLanguage);
+        updateBlogHubSeo(currentLanguage, undefined, seoTrackingSettings);
         return;
       }
     }
@@ -394,7 +409,7 @@ export default function App() {
         }
       }
       if (route.blog?.type === 'hub') {
-        updateBlogHubSeo(route.lang);
+        updateBlogHubSeo(route.lang, undefined, seoTrackingSettings);
         return;
       }
       if (route.keywordSlug) {
@@ -512,7 +527,7 @@ export default function App() {
       void pushSharedSettings({ seoOverrides: { [key]: content } });
     } catch {}
     if (tool === activeTool && lang === currentLanguage) {
-      updateDocumentSeo(lang, tool, content, brandingSettings);
+      updateDocumentSeo(lang, tool, content, brandingSettings, seoTrackingSettings);
     }
   };
 

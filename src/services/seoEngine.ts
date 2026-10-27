@@ -3,20 +3,38 @@ import { SUPPORTED_LANGUAGES, TOOL_CONTENT, TOOL_SLUGS } from '../data/i18nData'
 import { buildKeywordFaqs, loadKeywordPages } from '../data/keywordPages';
 import { loadGuides } from '../data/guides';
 
+// Production canonical host is non-www: https://www.igsavego.com 301s to
+// https://igsavego.com. Older settings may still store the www host, so every
+// generated canonical/hreflang/schema URL is normalized through this helper.
+export function normalizeOrigin(origin: string | undefined): string {
+  const raw = (origin || '').trim().replace(/\/+$/, '');
+  if (!raw) return 'https://igsavego.com';
+  if (/^https?:\/\/(www\.)?igsavego\.com$/i.test(raw)) return 'https://igsavego.com';
+  return raw;
+}
+
+function resolveOrigin(tracking?: Partial<SeoTrackingSettings>): string {
+  const customOrigin = tracking?.canonicalBaseUrl?.trim();
+  if (customOrigin) return normalizeOrigin(customOrigin);
+  return normalizeOrigin(typeof window !== 'undefined' ? window.location.origin : 'https://igsavego.com');
+}
+
 export function updateDocumentSeo(
   language: LanguageCode,
   tool: MediaType,
   overrideContent?: Partial<ToolSeoContent>,
   branding?: Partial<SiteBrandingSettings>,
-  tracking?: Partial<SeoTrackingSettings>
+  tracking?: Partial<SeoTrackingSettings>,
+  canonicalPath?: string
 ): void {
   const defaultContent = TOOL_CONTENT[tool][language] || TOOL_CONTENT[tool]['en'];
   const content = { ...defaultContent, ...overrideContent };
   const siteName = branding?.siteName?.trim() || 'IGSaveGo';
-  const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const origin = resolveOrigin(tracking);
   const slug = TOOL_SLUGS[tool];
-  const canonicalUrl = `${origin}/${language}/${slug}`;
+  const canonicalUrl = canonicalPath
+    ? `${origin}${canonicalPath.startsWith('/') ? canonicalPath : `/${canonicalPath}`}`
+    : `${origin}/${language}/${slug}`;
 
   // Replace default brand name if custom siteName is set
   let dynamicTitle = content.title;
@@ -121,8 +139,7 @@ export function updateKeywordPageSeo(
 ): void {
   if (typeof document === 'undefined') return;
   const siteName = branding?.siteName?.trim() || 'IGSaveGo';
-  const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const origin = resolveOrigin(tracking);
   const canonicalUrl = `${origin}/${page.slug}`;
 
   document.title = page.title;
@@ -204,7 +221,6 @@ export function updateKeywordPageSeo(
         operatingSystem: 'All (iOS, Android, Windows, macOS, Linux, Mobile)',
         description: page.metaDescription,
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
-        aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.9', reviewCount: '142850', bestRating: '5', worstRating: '1' },
       },
     },
     {
@@ -240,8 +256,7 @@ export function updateGuideSeo(
 ): void {
   if (typeof document === 'undefined') return;
   const siteName = branding?.siteName?.trim() || 'IGSaveGo';
-  const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const origin = resolveOrigin(tracking);
   const canonicalUrl = `${origin}/blog/${guide.slug}`;
 
   document.title = guide.title;
@@ -351,8 +366,7 @@ export function updateBlogHubSeo(
 ): void {
   if (typeof document === 'undefined') return;
   const siteName = branding?.siteName?.trim() || 'IGSaveGo';
-  const customOrigin = tracking?.canonicalBaseUrl?.trim();
-  const origin = customOrigin || (typeof window !== 'undefined' ? window.location.origin : 'https://www.igsavego.com');
+  const origin = resolveOrigin(tracking);
   const canonicalUrl = `${origin}/blog`;
   const isArabic = lang === 'ar';
   const title = isArabic
@@ -370,6 +384,22 @@ export function updateBlogHubSeo(
     document.head.appendChild(metaDesc);
   }
   metaDesc.setAttribute('content', desc);
+
+  const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
+    let tag = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute(attr, key);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+  };
+  setMeta('property', 'og:title', title);
+  setMeta('property', 'og:description', desc);
+  setMeta('property', 'og:url', canonicalUrl);
+  setMeta('property', 'og:type', 'website');
+  setMeta('name', 'twitter:title', title);
+  setMeta('name', 'twitter:description', desc);
 
   let canonicalLink = document.querySelector('link[rel="canonical"]');
   if (!canonicalLink) {
@@ -463,9 +493,12 @@ export function applySeoAndTrackingScripts(
   );
 
   // 4. Google Analytics (GA4 / gtag.js)
+  // Only touch the tags when an ID is actually configured. Removing the static
+  // GA4 tags and then bailing out on an empty ID would silently disable the
+  // property that already ships in index.html.
   const gaId = tracking.googleAnalyticsId?.trim();
-  document.querySelectorAll('script[data-tracking="google-analytics"]').forEach((el) => el.remove());
   if (gaId) {
+    document.querySelectorAll('script[data-tracking="google-analytics"]').forEach((el) => el.remove());
     const gaScript = document.createElement('script');
     gaScript.async = true;
     gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`;
@@ -574,13 +607,6 @@ function updateStructuredDataSchemas(
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.9',
-      reviewCount: '142850',
-      bestRating: '5',
-      worstRating: '1',
-    },
   };
 
   // 2. HowTo Schema (3-step guide)
@@ -632,7 +658,8 @@ function updateStructuredDataSchemas(
 }
 
 // Generate dynamic sitemap.xml string for all tools and languages
-export function generateDynamicSitemapXml(origin: string = 'https://www.igsavego.com'): string {
+export function generateDynamicSitemapXml(origin: string = 'https://igsavego.com'): string {
+  origin = normalizeOrigin(origin);
   const today = new Date().toISOString().split('T')[0];
   const tools: MediaType[] = ['video', 'photo', 'reels', 'story', 'highlights'];
 

@@ -10,16 +10,16 @@ let cached: { xml: string; expires: number; origin: string } | null = null;
 
 const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 'story-saver', 'highlights-downloader'];
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
-const FALLBACK_ORIGIN = 'https://www.igsavego.com';
+const FALLBACK_ORIGIN = 'https://igsavego.com';
 
 export function resolveSeoOrigin(hostname: string): string {
   const raw = (hostname || '').toLowerCase();
-  if (
-    raw === 'www.igsavego.com' ||
-    raw === 'igsavego.com' ||
-    raw.endsWith('.pages.dev') ||
-    raw.startsWith('localhost')
-  ) {
+  // Canonical host is non-www: https://www.igsavego.com 301s to https://igsavego.com,
+  // so a www sitemap would advertise redirecting URLs.
+  if (raw === 'www.igsavego.com' || raw === 'igsavego.com') {
+    return 'https://igsavego.com';
+  }
+  if (raw.endsWith('.pages.dev') || raw.startsWith('localhost')) {
     return `https://${raw}`;
   }
   return FALLBACK_ORIGIN;
