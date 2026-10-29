@@ -1,6 +1,8 @@
 // Shared sitemap.xml builder (used by server.ts; api/sitemap.ts keeps its own
 // inlined copy because Vercel cannot bundle local imports in this project).
 
+import { INFO_PAGE_SEO } from '../src/data/infoPages';
+
 const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 'story-saver', 'highlights-downloader'];
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
 
@@ -58,6 +60,10 @@ export function buildSitemapXml(
     if (!g.slug) continue;
     const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
     xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod, 'weekly', '0.8');
+  }
+
+  for (const page of INFO_PAGE_SEO) {
+    xml += urlNode(`${origin}${page.path}`, page.updated, 'monthly', '0.6');
   }
 
   xml += `</urlset>`;

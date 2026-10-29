@@ -257,8 +257,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           {/* Trust Guarantees */}
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-slate-500 sm:gap-8">
             <div className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span>100% Free & Anonymous</span>
+              <ShieldCheck className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+              <span>Free · No account required</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Lock className="h-4 w-4 text-blue-500" />

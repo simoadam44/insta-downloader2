@@ -2,6 +2,8 @@ import { AdSettings, GuideArticle, KeywordToolPage, LanguageCode, MediaType, Seo
 import { SUPPORTED_LANGUAGES, TOOL_CONTENT, TOOL_SLUGS } from '../data/i18nData';
 import { buildKeywordFaqs, loadKeywordPages } from '../data/keywordPages';
 import { loadGuides } from '../data/guides';
+import type { InfoPage } from '../data/infoPages';
+import { INFO_PAGE_SEO } from '../data/infoPages';
 
 // Primary canonical host is https://www.igsavego.com (the apex 301s there).
 // Older settings may still store the apex host, so every generated canonical,
@@ -349,6 +351,126 @@ export function updateGuideSeo(
       },
     },
   ];
+  schemas.forEach(({ type, schema }) => {
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.setAttribute('data-schema-type', type);
+    script.textContent = JSON.stringify(schema);
+    document.head.appendChild(script);
+  });
+}
+
+// SEO for the static informational/legal pages (/about, /contact, /privacy,
+// /terms, /disclaimer, /how-to-use, /faq). One canonical per page on the www
+// origin, self hreflang, WebPage + BreadcrumbList, plus FAQPage on /faq where
+// the visible content actually is a Q&A list.
+export function updateInfoPageSeo(
+  page: InfoPage,
+  branding?: Partial<SiteBrandingSettings>,
+  tracking?: Partial<SeoTrackingSettings>
+): void {
+  if (typeof document === 'undefined') return;
+  const siteName = branding?.siteName?.trim() || 'IGSaveGo';
+  const origin = resolveOrigin(tracking);
+  const canonicalUrl = `${origin}${page.path}`;
+
+  document.title = page.title;
+
+  const setMeta = (attr: 'name' | 'property', key: string, content: string) => {
+    let tag = document.querySelector(`meta[${attr}="${key}"]`);
+    if (!tag) {
+      tag = document.createElement('meta');
+      tag.setAttribute(attr, key);
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute('content', content);
+  };
+  setMeta('name', 'description', page.description);
+  setMeta('name', 'robots', 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1');
+  setMeta('property', 'og:title', page.title);
+  setMeta('property', 'og:description', page.description);
+  setMeta('property', 'og:url', canonicalUrl);
+  setMeta('property', 'og:type', 'website');
+  setMeta('property', 'og:site_name', siteName);
+  setMeta('name', 'twitter:title', page.title);
+  setMeta('name', 'twitter:description', page.description);
+  if (branding?.customLogoUrl) {
+    setMeta('property', 'og:image', branding.customLogoUrl);
+    setMeta('name', 'twitter:image', branding.customLogoUrl);
+  }
+
+  let canonicalLink = document.querySelector('link[rel="canonical"]');
+  if (!canonicalLink) {
+    canonicalLink = document.createElement('link');
+    canonicalLink.setAttribute('rel', 'canonical');
+    document.head.appendChild(canonicalLink);
+  }
+  canonicalLink.setAttribute('href', canonicalUrl);
+
+  // These pages are English-only and are not translated into the tool locales,
+  // so they declare a single self-referencing hreflang instead of the full set.
+  document.querySelectorAll('link[rel="alternate"][hreflang]').forEach((el) => el.remove());
+  const selfLang = document.createElement('link');
+  selfLang.setAttribute('rel', 'alternate');
+  selfLang.setAttribute('hreflang', 'en');
+  selfLang.setAttribute('href', canonicalUrl);
+  document.head.appendChild(selfLang);
+  const xDefault = document.createElement('link');
+  xDefault.setAttribute('rel', 'alternate');
+  xDefault.setAttribute('hreflang', 'x-default');
+  xDefault.setAttribute('href', canonicalUrl);
+  document.head.appendChild(xDefault);
+
+  document.documentElement.lang = 'en';
+  document.documentElement.dir = 'ltr';
+
+  document.querySelectorAll('script[data-schema-type]').forEach((el) => el.remove());
+  const schemas: { type: string; schema: Record<string, unknown> }[] = [
+    {
+      type: 'WebPage',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': `${canonicalUrl}#webpage`,
+        url: canonicalUrl,
+        name: page.title,
+        description: page.description,
+        inLanguage: 'en',
+        dateModified: page.updated,
+        isPartOf: { '@type': 'WebSite', name: siteName, url: origin },
+        publisher: { '@type': 'Organization', name: siteName, url: origin },
+      },
+    },
+    {
+      type: 'BreadcrumbList',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: siteName, item: origin },
+          { '@type': 'ListItem', position: 2, name: page.h1, item: canonicalUrl },
+        ],
+      },
+    },
+  ];
+
+  if (page.faqs && page.faqs.length > 0) {
+    schemas.push({
+      type: 'FAQPage',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        '@id': `${canonicalUrl}#faq`,
+        inLanguage: 'en',
+        mainEntity: page.faqs.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      },
+    });
+  }
+
   schemas.forEach(({ type, schema }) => {
     const script = document.createElement('script');
     script.type = 'application/ld+json';
@@ -740,6 +862,17 @@ export function generateDynamicSitemapXml(origin: string = 'https://www.igsavego
   } catch {
     // localStorage unavailable (SSR) — skip guides
   }
+
+  // Informational and legal pages — static, English-only, own lastmod.
+  INFO_PAGE_SEO.forEach((page) => {
+    const path = page.path.replace(/^\//, '');
+    xml += `  <url>\n`;
+    xml += `    <loc>${origin}/${path}</loc>\n`;
+    xml += `    <lastmod>${page.updated}</lastmod>\n`;
+    xml += `    <changefreq>monthly</changefreq>\n`;
+    xml += `    <priority>0.6</priority>\n`;
+    xml += `  </url>\n`;
+  });
 
   xml += `</urlset>`;
   return xml;

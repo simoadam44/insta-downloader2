@@ -8,6 +8,7 @@
 // correct canonical and the DB-backed pages simply fall back to the client
 // (fail-open, never fail-closed).
 import { TOOL_CONTENT } from '../../src/data/i18nData';
+import { INFO_PAGES } from '../../src/data/infoPages';
 import type { MediaType } from '../../src/types';
 import { getSbConfig, sbList } from './supabase';
 import {
@@ -208,6 +209,19 @@ export async function resolvePageHeadMeta(
       ...toolMeta(SLUG_TO_MEDIA_TYPE[route.toolSlug], route.lang),
       ogType: 'website',
       lang: route.lang,
+    };
+  }
+
+  if (route.kind === 'info') {
+    const page = INFO_PAGES[route.infoId];
+    // Titles/descriptions are authored for these pages and already contain the
+    // brand; do not run them through withBrand() or they would read twice.
+    return {
+      canonicalUrl: `${origin}${page.path}`,
+      title: page.title,
+      description: page.description,
+      ogType: 'website',
+      lang: 'en',
     };
   }
 

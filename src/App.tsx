@@ -9,7 +9,7 @@ import { FeaturesSection } from './components/FeaturesSection';
 import { WhyChooseUs } from './components/WhyChooseUs';
 import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
-import { LegalModal } from './components/LegalModals';
+import { InfoPage } from './components/InfoPage';
 import { DynamicSitemapModal } from './components/DynamicSitemapModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import {
@@ -25,7 +25,8 @@ import {
 import { SLUG_TO_TOOL, SUPPORTED_LANGUAGES, TOOL_SLUGS } from './data/i18nData';
 import { buildKeywordFaqs, findKeywordPage, refreshKeywordPages } from './data/keywordPages';
 import { findGuide, guidesByLang, refreshGuides } from './data/guides';
-import { applySeoAndTrackingScripts, updateBlogHubSeo, updateDocumentSeo, updateGuideSeo, updateKeywordPageSeo } from './services/seoEngine';
+import { INFO_PAGES, findInfoPage, infoPageById, type InfoPageId } from './data/infoPages';
+import { applySeoAndTrackingScripts, updateBlogHubSeo, updateDocumentSeo, updateGuideSeo, updateInfoPageSeo, updateKeywordPageSeo } from './services/seoEngine';
 import { BlogHub, ArticlePage } from './components/Blog';
 import { extractInstagramMedia } from './services/extractorService';
 import { fetchSharedSettings, pushSharedSettings } from './services/siteSettings';
@@ -56,28 +57,28 @@ const DEFAULT_AD_SETTINGS: AdSettings = {
   autoAdsEnabled: false,
   autoAdsClientId: 'ca-pub-9920194819284102',
   headerBanner: {
-    enabled: true,
+    enabled: false,
     type: 'banner',
     title: 'Private Cloud VPN & Media Safe',
     adClient: 'ca-pub-9920194819284102',
     adSlot: '8491028401',
   },
   belowInput: {
-    enabled: true,
+    enabled: false,
     type: 'native',
     title: 'High-Speed Unlimited File Storage',
     adClient: 'ca-pub-9920194819284102',
     adSlot: '1920491829',
   },
   aboveResult: {
-    enabled: true,
+    enabled: false,
     type: 'banner',
     title: 'Fast Cloud Media Player Pro',
     adClient: 'ca-pub-9920194819284102',
     adSlot: '3940192841',
   },
   inContentBanner: {
-    enabled: true,
+    enabled: false,
     type: 'banner',
     title: 'Cloud Security Shield & Anti-Malware',
     adClient: 'ca-pub-9920194819284102',
@@ -91,7 +92,7 @@ const DEFAULT_AD_SETTINGS: AdSettings = {
     adSlot: '5920194812',
   },
   stickyFooterBanner: {
-    enabled: true,
+    enabled: false,
     type: 'banner',
     title: 'Download Unlimited HD Videos at 10x Speed',
     adClient: 'ca-pub-9920194819284102',
@@ -118,27 +119,43 @@ export default function App() {
     isAdmin: boolean;
     keywordSlug: string | null;
     blog: { type: 'hub' } | { type: 'article'; slug: string } | null;
+    infoPage: InfoPageId | null;
   } => {
     if (typeof window === 'undefined') {
-      return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: null };
+      return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: null, infoPage: null };
     }
     const path = window.location.pathname.toLowerCase().replace(/^\/|\/$/g, '');
     const segments = path.split('/');
 
     if (segments[0] === 'admin') {
-      return { lang: 'en', tool: 'video', isAdmin: true, keywordSlug: null, blog: null };
+      return { lang: 'en', tool: 'video', isAdmin: true, keywordSlug: null, blog: null, infoPage: null };
+    }
+
+    // Static informational/legal pages: /about, /contact, /privacy, /terms,
+    // /disclaimer, /how-to-use, /faq. Checked before keyword landing pages so
+    // these paths can never be captured by the dynamic keyword engine.
+    const infoPage = segments.length === 1 ? findInfoPage(`/${segments[0]}`) : null;
+    if (infoPage) {
+      return {
+        lang: 'en',
+        tool: 'video',
+        isAdmin: false,
+        keywordSlug: null,
+        blog: null,
+        infoPage: infoPage.id,
+      };
     }
 
     // Blog hub + articles: /blog and /blog/{slug}
     if (segments[0] === 'blog') {
       if (segments.length === 1) {
-        return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: { type: 'hub' } };
+        return { lang: 'en', tool: 'video', isAdmin: false, keywordSlug: null, blog: { type: 'hub' }, infoPage: null };
       }
       if (segments.length === 2) {
         const rawSlug = window.location.pathname.replace(/^\/|\/$/g, '').split('/')[1];
         const guide = findGuide(rawSlug);
         if (guide) {
-          return { lang: guide.lang, tool: guide.tool, isAdmin: false, keywordSlug: null, blog: { type: 'article', slug: guide.slug } };
+          return { lang: guide.lang, tool: guide.tool, isAdmin: false, keywordSlug: null, blog: { type: 'article', slug: guide.slug }, infoPage: null };
         }
       }
     }
@@ -148,7 +165,7 @@ export default function App() {
       const rawSeg = window.location.pathname.replace(/^\/|\/$/g, '').split('/')[0];
       const kwPage = findKeywordPage(rawSeg);
       if (kwPage) {
-        return { lang: kwPage.lang, tool: kwPage.tool, isAdmin: false, keywordSlug: kwPage.slug, blog: null };
+        return { lang: kwPage.lang, tool: kwPage.tool, isAdmin: false, keywordSlug: kwPage.slug, blog: null, infoPage: null };
       }
     }
 
@@ -170,7 +187,7 @@ export default function App() {
       }
     }
 
-    return { lang: detectedLang, tool: detectedTool, isAdmin: false, keywordSlug: null, blog: null };
+    return { lang: detectedLang, tool: detectedTool, isAdmin: false, keywordSlug: null, blog: null, infoPage: null };
   };
 
   const initialRoute = parseRoute();
@@ -181,6 +198,7 @@ export default function App() {
   const [blogView, setBlogView] = useState<{ type: 'hub' } | { type: 'article'; slug: string } | null>(
     initialRoute.blog
   );
+  const [infoPageId, setInfoPageId] = useState<InfoPageId | null>(initialRoute.infoPage);
   // Becomes true when the shared keyword list (Supabase) arrives, so landing
   // pages + their SEO resolve for every visitor — not just the admin's browser.
   const [sharedKwReady, setSharedKwReady] = useState(false);
@@ -317,7 +335,6 @@ export default function App() {
   const [lastExtractedUrl, setLastExtractedUrl] = useState<string | null>(null);
 
   // Modals
-  const [activeLegalModal, setActiveLegalModal] = useState<'terms' | 'privacy' | 'disclaimer' | null>(null);
   const [isSitemapOpen, setIsSitemapOpen] = useState(false);
   const [isPwaModalOpen, setIsPwaModalOpen] = useState(false);
 
@@ -370,6 +387,13 @@ export default function App() {
   // Initial SEO sync on mount (keyword landing pages + blog use their own SEO)
   useEffect(() => {
     if (isAdminOpen) return;
+    if (infoPageId) {
+      const page = infoPageById(infoPageId);
+      if (page) {
+        updateInfoPageSeo(page, brandingSettings, seoTrackingSettings);
+        return;
+      }
+    }
     if (blogView) {
       if (blogView.type === 'article') {
         const g = findGuide(blogView.slug);
@@ -390,7 +414,7 @@ export default function App() {
     }
     syncRouteAndSeo(currentLanguage, activeTool, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLanguage, activeTool, isAdminOpen, keywordSlug, sharedKwReady, blogView, sharedGuidesReady, syncRouteAndSeo]);
+  }, [currentLanguage, activeTool, isAdminOpen, keywordSlug, sharedKwReady, blogView, sharedGuidesReady, syncRouteAndSeo, infoPageId, brandingSettings, seoTrackingSettings]);
 
   // Browser back/forward navigation support
   useEffect(() => {
@@ -401,6 +425,14 @@ export default function App() {
       setActiveTool(route.tool);
       setKeywordSlug(route.keywordSlug);
       setBlogView(route.blog);
+      setInfoPageId(route.infoPage);
+      if (route.infoPage) {
+        const page = infoPageById(route.infoPage);
+        if (page) {
+          updateInfoPageSeo(page);
+          return;
+        }
+      }
       if (route.blog?.type === 'article') {
         const g = findGuide(route.blog.slug);
         if (g) {
@@ -428,6 +460,7 @@ export default function App() {
   const handleSelectLanguage = (newLang: LanguageCode) => {
     setKeywordSlug(null);
     setBlogView(null);
+    setInfoPageId(null);
     setCurrentLanguage(newLang);
     syncRouteAndSeo(newLang, activeTool, true);
   };
@@ -436,6 +469,7 @@ export default function App() {
   const handleSelectTool = (newTool: MediaType) => {
     setKeywordSlug(null);
     setBlogView(null);
+    setInfoPageId(null);
     setActiveTool(newTool);
     setExtractedMedia(null);
     setErrorMessage(null);
@@ -448,6 +482,7 @@ export default function App() {
   // Blog navigation (client-side, history-aware)
   const openBlogHub = () => {
     setBlogView({ type: 'hub' });
+    setInfoPageId(null);
     setExtractedMedia(null);
     setErrorMessage(null);
     if (typeof window !== 'undefined') {
@@ -458,6 +493,7 @@ export default function App() {
   const openGuide = (slug: string) => {
     const g = findGuide(slug);
     setBlogView({ type: 'article', slug: g ? g.slug : slug });
+    setInfoPageId(null);
     setExtractedMedia(null);
     setErrorMessage(null);
     if (g) {
@@ -473,6 +509,7 @@ export default function App() {
   // From a guide CTA: leave blog, open the downloader tool page.
   const openToolFromBlog = (tool: MediaType) => {
     setBlogView(null);
+    setInfoPageId(null);
     handleSelectTool(tool);
   };
 
@@ -601,7 +638,12 @@ export default function App() {
 
       {/* 2. Main Hero Section */}
       <main className="flex-1">
-        {blogView ? (
+        {infoPageId ? (
+          <InfoPage
+            page={infoPageById(infoPageId) || INFO_PAGES.about}
+            contactEmail={brandingSettings.contactEmail || 'support@igsavego.com'}
+          />
+        ) : blogView ? (
           blogView.type === 'hub' ? (
             <BlogHub
               guides={guidesByLang(currentLanguage)}
@@ -714,21 +756,14 @@ export default function App() {
         branding={brandingSettings}
         onSelectTool={handleSelectTool}
         onSelectLanguage={handleSelectLanguage}
-        onOpenLegal={(type) => setActiveLegalModal(type)}
         onOpenSitemap={() => setIsSitemapOpen(true)}
         onOpenAdmin={handleOpenAdmin}
-        onOpenBlog={openBlogHub}
       />
 
       {/* 10. Sticky Floating Footer Ad Banner */}
       <AdBanner slot="stickyFooterBanner" config={adSettings.stickyFooterBanner} />
 
-      {/* 11. Modals: Legal, Sitemap, PWA Guide */}
-      <LegalModal
-        type={activeLegalModal}
-        onClose={() => setActiveLegalModal(null)}
-      />
-
+      {/* 11. Modals: Sitemap, PWA Guide */}
       <DynamicSitemapModal
         isOpen={isSitemapOpen}
         onClose={() => setIsSitemapOpen(false)}

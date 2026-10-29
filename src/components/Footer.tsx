@@ -7,9 +7,14 @@ import {
   FileCode,
   Lock,
   ArrowUp,
+  BookOpen,
+  Info,
+  Mail,
+  HelpCircle,
+  ListChecks,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
-import { SUPPORTED_LANGUAGES, TOOL_SLUGS, UI_TRANSLATIONS } from '../data/i18nData';
+import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
 
 interface FooterProps {
   currentLanguage: LanguageCode;
@@ -17,11 +22,23 @@ interface FooterProps {
   branding?: SiteBrandingSettings;
   onSelectTool: (tool: MediaType) => void;
   onSelectLanguage: (lang: LanguageCode) => void;
-  onOpenLegal: (type: 'terms' | 'privacy' | 'disclaimer') => void;
   onOpenSitemap: () => void;
   onOpenAdmin: () => void;
-  onOpenBlog?: () => void;
 }
+
+const infoLinks = [
+  { href: '/about', label: 'About Us', icon: Info },
+  { href: '/how-to-use', label: 'How to Use', icon: ListChecks },
+  { href: '/faq', label: 'FAQ', icon: HelpCircle },
+  { href: '/contact', label: 'Contact Us', icon: Mail },
+  { href: '/blog', label: 'Guides & Blog', icon: BookOpen },
+];
+
+const legalLinks = [
+  { href: '/terms', label: 'Terms of Use', icon: FileText },
+  { href: '/privacy', label: 'Privacy Policy', icon: Shield },
+  { href: '/disclaimer', label: 'Disclaimer', icon: AlertTriangle },
+];
 
 export const Footer: React.FC<FooterProps> = ({
   currentLanguage,
@@ -29,16 +46,14 @@ export const Footer: React.FC<FooterProps> = ({
   branding,
   onSelectTool,
   onSelectLanguage,
-  onOpenLegal,
   onOpenSitemap,
   onOpenAdmin,
-  onOpenBlog,
 }) => {
   const siteName = branding?.siteName || 'IGSaveGo';
   const siteTagline = branding?.siteTagline || 'Fast & HD Media Saver';
   const customLogoUrl = branding?.customLogoUrl;
   const logoType = branding?.logoType || 'default';
-  const copyrightText = branding?.copyrightText || `© ${new Date().getFullYear()} ${siteName}. All rights reserved. Ultra-Fast Free Instagram Downloader.`;
+  const copyrightText = branding?.copyrightText || `© ${new Date().getFullYear()} ${siteName}. All rights reserved.`;
   const contactEmail = branding?.contactEmail || 'support@igsavego.com';
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
@@ -55,11 +70,14 @@ export const Footer: React.FC<FooterProps> = ({
     { type: 'highlights', label: t.navHighlights + ' Downloader' },
   ];
 
+  const linkClass =
+    'flex items-center gap-1.5 rounded hover:text-rose-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400';
+
   return (
     <footer className="border-t border-slate-200 bg-white text-slate-600">
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         {/* Top Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-1 gap-8 mb-12 sm:grid-cols-2 lg:grid-cols-4">
           {/* Brand Col */}
           <div className="space-y-4">
             <div className="flex items-center gap-2.5">
@@ -74,7 +92,7 @@ export const Footer: React.FC<FooterProps> = ({
                 />
               ) : (
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 text-white font-bold">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
                     <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
                     <circle cx="12" cy="12" r="4" />
                   </svg>
@@ -92,20 +110,23 @@ export const Footer: React.FC<FooterProps> = ({
               </div>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              {siteName} is the leading free web tool designed to help you download Instagram videos, photos, reels, and stories in high definition without watermarks.
+              {siteName} is a free browser-based tool for saving publicly available Instagram
+              videos, Reels, photos and IGTV posts. It is an independent project, not affiliated
+              with Instagram or Meta.
             </p>
+            <p className="text-xs font-semibold text-slate-500">{siteTagline}</p>
             <div className="pt-1 flex flex-wrap items-center gap-2">
               <button
                 onClick={onOpenAdmin}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
               >
-                <Lock className="h-3.5 w-3.5 text-amber-500" />
+                <Lock className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
                 <span>Admin Portal</span>
               </button>
               {contactEmail && (
                 <a
                   href={`mailto:${contactEmail}`}
-                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors underline"
+                  className="text-xs text-slate-500 hover:text-slate-700 transition-colors underline underline-offset-2"
                 >
                   {contactEmail}
                 </a>
@@ -115,9 +136,9 @@ export const Footer: React.FC<FooterProps> = ({
 
           {/* Media Tools Col */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
               Instagram Tools
-            </h4>
+            </h2>
             <ul className="space-y-2 text-xs">
               {toolsList.map((item) => (
                 <li key={item.type}>
@@ -126,7 +147,7 @@ export const Footer: React.FC<FooterProps> = ({
                       onSelectTool(item.type);
                       scrollToTop();
                     }}
-                    className="hover:text-rose-600 transition-colors text-left"
+                    className="hover:text-rose-600 transition-colors text-left rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                   >
                     Instagram {item.label}
                   </button>
@@ -135,13 +156,54 @@ export const Footer: React.FC<FooterProps> = ({
             </ul>
           </div>
 
-          {/* Multi-Language Links Col */}
+          {/* Information Col */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3 flex items-center gap-1.5">
-              <Globe className="h-3.5 w-3.5 text-rose-500" />
-              <span>International Languages</span>
-            </h4>
-            <div className="grid grid-cols-2 gap-1.5 text-xs">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
+              Information
+            </h2>
+            <ul className="space-y-2 text-xs">
+              {infoLinks.map(({ href, label, icon: Icon }) => (
+                <li key={href}>
+                  <a href={href} className={linkClass}>
+                    <Icon className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                    <span>{label}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Legal & Languages Col */}
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
+              Legal &amp; Language
+            </h2>
+            <ul className="space-y-2 text-xs">
+              {legalLinks.map(({ href, label, icon: Icon }) => (
+                <li key={href}>
+                  <a href={href} className={linkClass}>
+                    <Icon className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                    <span>{label}</span>
+                  </a>
+                </li>
+              ))}
+              <li>
+                <button
+                  id="btn-open-sitemap"
+                  onClick={onOpenSitemap}
+                  className="flex items-center gap-1.5 text-rose-700 font-semibold hover:underline rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+                >
+                  <FileCode className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{t.sitemap} (SEO Engine)</span>
+                </button>
+              </li>
+            </ul>
+
+            <h2 className="mt-5 text-xs font-bold uppercase tracking-wider text-slate-900 mb-2 flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
+              <span>Languages</span>
+            </h2>
+            <div className="grid grid-cols-2 gap-1 text-xs">
               {SUPPORTED_LANGUAGES.map((lang) => (
                 <button
                   key={lang.code}
@@ -149,99 +211,46 @@ export const Footer: React.FC<FooterProps> = ({
                     onSelectLanguage(lang.code);
                     scrollToTop();
                   }}
-                  className={`flex items-center gap-1.5 py-1 text-left rounded-md px-1 transition-colors ${
+                  className={`flex items-center gap-1.5 py-1 text-left rounded-md px-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 ${
                     currentLanguage === lang.code
-                      ? 'text-rose-600 font-bold bg-rose-50'
+                      ? 'text-rose-700 font-bold bg-rose-50'
                       : 'hover:text-slate-900 text-slate-600'
                   }`}
                 >
-                  <span>{lang.flag}</span>
+                  <span aria-hidden="true">{lang.flag}</span>
                   <span>{lang.nativeName}</span>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Legal & Compliance Col */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
-              Legal & SEO
-            </h4>
-            <ul className="space-y-2 text-xs">
-              <li>
-                <button
-                  onClick={() => onOpenLegal('terms')}
-                  className="flex items-center gap-1.5 hover:text-rose-600 transition-colors"
-                >
-                  <FileText className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{t.terms}</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onOpenLegal('privacy')}
-                  className="flex items-center gap-1.5 hover:text-rose-600 transition-colors"
-                >
-                  <Shield className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{t.privacy}</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onOpenLegal('disclaimer')}
-                  className="flex items-center gap-1.5 hover:text-rose-600 transition-colors"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5 text-slate-400" />
-                  <span>{t.disclaimer}</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  id="btn-open-sitemap"
-                  onClick={onOpenSitemap}
-                  className="flex items-center gap-1.5 text-rose-600 font-semibold hover:underline"
-                >
-                  <FileCode className="h-3.5 w-3.5" />
-                  <span>{t.sitemap} (SEO Engine)</span>
-                </button>
-              </li>
-              {onOpenBlog && (
-                <li>
-                  <button
-                    id="btn-open-blog"
-                    onClick={onOpenBlog}
-                    className="flex items-center gap-1.5 hover:text-rose-600 transition-colors"
-                  >
-                    <FileText className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{currentLanguage === 'ar' ? 'المدونة وشروحات التحميل' : 'Blog & Download Guides'}</span>
-                  </button>
-                </li>
-              )}
-            </ul>
-          </div>
         </div>
 
         {/* Disclaimer & Copyright */}
-        <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-400 space-y-3">
+        <div className="border-t border-slate-100 pt-8 text-center text-xs text-slate-500 space-y-3">
           <p className="max-w-3xl mx-auto leading-relaxed">
-            <strong>Disclaimer:</strong> {siteName} is an independent educational and utility web tool. We do not host, store, or archive copyrighted media files on our servers. All video and photo streams are fetched directly from Instagram’s public CDN. Instagram™ and Meta™ are registered trademarks of Meta Platforms, Inc. This application is not affiliated with, endorsed by, or sponsored by Instagram or Meta.
+            <strong className="text-slate-500">Disclaimer:</strong> {siteName} is an independent
+            utility. It does not host or archive media files; files are streamed from Instagram&apos;s
+            public CDN or relayed by fallback providers when direct requests fail. Instagram and Meta
+            are trademarks of Meta Platforms, Inc. or its affiliates. This site is not affiliated
+            with, endorsed by or sponsored by Instagram or Meta.{' '}
+            <a href="/disclaimer" className="underline underline-offset-2 hover:text-slate-600">
+              Read the full disclaimer
+            </a>
+            .
           </p>
 
           <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-            <div>
-              {copyrightText}
-            </div>
+            <div>{copyrightText}</div>
 
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                Vercel Edge Ready
+              <span className="text-[11px] text-slate-500 font-semibold">
+                Independent · No account required
               </span>
               <button
                 onClick={scrollToTop}
-                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs"
+                className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
               >
-                <ArrowUp className="h-3 w-3" />
+                <ArrowUp className="h-3 w-3" aria-hidden="true" />
                 <span>Top</span>
               </button>
             </div>

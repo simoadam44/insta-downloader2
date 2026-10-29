@@ -13,6 +13,19 @@ const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
 const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 
+// Inlined copy of INFO_PAGE_SEO from src/data/infoPages.ts (this Vercel
+// function deliberately has no local imports). Keep in sync when a page's
+// `updated` value changes.
+const INFO_PAGES = [
+  { path: '/about', updated: '2026-10-27' },
+  { path: '/contact', updated: '2026-10-27' },
+  { path: '/how-to-use', updated: '2026-10-27' },
+  { path: '/faq', updated: '2026-10-27' },
+  { path: '/privacy', updated: '2026-10-27' },
+  { path: '/terms', updated: '2026-10-27' },
+  { path: '/disclaimer', updated: '2026-10-27' },
+];
+
 // Host allowlist: prevents Host-header poisoning of cached canonical URLs.
 // The primary canonical host is www (the apex 301s there), so both production
 // hostnames collapse to https://www.igsavego.com.
@@ -112,6 +125,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   for (const g of guides) {
     const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
     xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod, 'weekly', '0.8');
+  }
+
+  // Informational and legal pages
+  for (const page of INFO_PAGES) {
+    xml += urlNode(`${origin}${page.path}`, page.updated, 'monthly', '0.6');
   }
 
   xml += `</urlset>`;

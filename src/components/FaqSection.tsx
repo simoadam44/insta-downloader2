@@ -80,10 +80,10 @@ export const FaqSection: React.FC<FaqSectionProps> = ({
           })}
         </div>
 
-        {/* Schema validation badge */}
-        <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-slate-400">
-          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-          <span>Structured FAQPage Schema.org microdata synchronized with Google Rich Results</span>
+        {/* Schema note: factual, no rich-result promise */}
+        <div className="mt-8 flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
+          <Sparkles className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
+          <span>These answers are also published as FAQPage JSON-LD structured data.</span>
         </div>
       </div>
     </section>

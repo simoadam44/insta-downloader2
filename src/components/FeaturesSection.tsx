@@ -5,7 +5,7 @@ import {
   Image as ImageIcon,
   CircleDot,
   FolderHeart,
-  Layers,
+  Music,
   Shield,
   Zap,
 } from 'lucide-react';
@@ -20,47 +20,70 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
   currentLanguage: _currentLanguage,
   onSelectTool,
 }) => {
-  const features = [
+  // Copy is limited to behaviour that can be checked in the extractor:
+  // post/Reel/IGTV links are accepted, story and highlight links are not,
+  // the MP3 action is a local lamejs conversion, and quality is whatever
+  // Instagram exposes for that post.
+  const features: {
+    tool: MediaType;
+    title: string;
+    description: string;
+    cta: string;
+    icon: typeof Video;
+    color: string;
+  }[] = [
     {
       tool: 'video' as MediaType,
       title: 'Instagram Video Downloader',
-      description: 'Download standard Instagram feed videos in Full HD 1080p MP4. Uncompressed audio and fast extraction without watermarks.',
+      description:
+        'Save the MP4 that Instagram exposes for a public video post. Nothing is upscaled and no fixed resolution is promised.',
+      cta: 'Open tool',
       icon: Video,
       color: 'from-blue-500 to-cyan-500',
     },
     {
       tool: 'reels' as MediaType,
       title: 'Instagram Reels Downloader',
-      description: 'Save viral 9:16 vertical Reels with crystal-clear audio soundtrack or extract high-bitrate background MP3 music tracks.',
+      description:
+        'Download a public Reel as MP4 with its original audio track. No account and no app install are required.',
+      cta: 'Open tool',
       icon: Sparkles,
       color: 'from-rose-500 to-pink-500',
     },
     {
       tool: 'photo' as MediaType,
-      title: 'Photo & Carousel Downloader',
-      description: 'Save single photos and multi-image carousel albums in original 1080x1350 resolution with zero pixelation or compression.',
+      title: 'Instagram Photo Downloader',
+      description:
+        'Save the JPG that Instagram returns for a public photo. One media item is returned per request; carousel coverage is not guaranteed.',
+      cta: 'Open tool',
       icon: ImageIcon,
       color: 'from-amber-500 to-orange-500',
     },
     {
       tool: 'story' as MediaType,
-      title: 'Anonymous Story Saver',
-      description: 'Watch and download Instagram Stories 100% anonymously. The account owner will never see your profile in their viewers list.',
+      title: 'Story Support Status',
+      description:
+        'Story and highlight links are rejected today with a clear message. The tab stays visible so the limitation is not hidden.',
+      cta: 'View status',
       icon: CircleDot,
       color: 'from-purple-500 to-indigo-500',
     },
     {
       tool: 'highlights' as MediaType,
-      title: 'Highlights & Archive Saver',
-      description: 'Archive permanently saved Highlight stories and custom cover artwork icons in full high definition with no expiration.',
+      title: 'Highlights: Not Supported',
+      description:
+        'Highlights need an authenticated Instagram session, which this tool does not use. Public post, Reel and IGTV links still work.',
+      cta: 'View status',
       icon: FolderHeart,
       color: 'from-emerald-500 to-teal-500',
     },
     {
-      tool: 'photo' as MediaType,
-      title: 'Batch Carousel Extractor',
-      description: 'Automatically unpack complex Instagram carousel posts and swipe galleries into separate full-resolution media files.',
-      icon: Layers,
+      tool: 'reels' as MediaType,
+      title: 'MP3 Audio Extraction',
+      description:
+        'When a Reel has an audio track, the result card can convert it to MP3 locally in your browser. Nothing is sent to a conversion server.',
+      cta: 'Open tool',
+      icon: Music,
       color: 'from-fuchsia-500 to-rose-500',
     },
   ];
@@ -70,14 +93,15 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
-            <Zap className="h-3.5 w-3.5" />
-            <span>All-In-One Toolkit</span>
+            <Zap className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>What the tool does</span>
           </div>
           <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-            Everything You Need to Save Instagram Media
+            One browser-based downloader
           </h2>
           <p className="mt-3 text-sm sm:text-base text-slate-600">
-            Engineered specifically for creators, archivists, and everyday users who want fast, lossless downloads.
+            Built for public Instagram posts, Reels and IGTV videos — with the unsupported
+            formats stated up front instead of hidden behind a promise.
           </p>
         </div>
 
@@ -85,14 +109,15 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
           {features.map((feat) => {
             const Icon = feat.icon;
             return (
-              <div
+              <button
                 key={feat.title}
+                type="button"
                 onClick={() => onSelectTool(feat.tool)}
-                className="group relative flex flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-7 shadow-xs hover:shadow-xl hover:shadow-slate-200/60 hover:border-slate-300 transition-all duration-200 cursor-pointer"
+                className="group relative flex w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-7 text-left shadow-xs hover:shadow-xl hover:shadow-slate-200/60 hover:border-slate-300 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
               >
                 <div>
                   <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr ${feat.color} text-white shadow-md transition-transform duration-200 group-hover:scale-110`}>
-                    <Icon className="h-6 w-6" />
+                    <Icon className="h-6 w-6" aria-hidden="true" />
                   </div>
                   <h3 className="mt-5 text-lg font-bold text-slate-900 group-hover:text-rose-600 transition-colors">
                     {feat.title}
@@ -102,11 +127,11 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
                   </p>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-rose-500 group-hover:text-rose-600">
-                  <span>Open Tool</span>
-                  <span className="transition-transform group-hover:translate-x-1">→</span>
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-rose-700 group-hover:text-rose-800">
+                  <span>{feat.cta}</span>
+                  <span className="transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -114,25 +139,25 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
         {/* Technical highlight bar */}
         <div className="mt-12 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-wrap items-center justify-around gap-6 text-center">
           <div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">1080p & 4K</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">Original Resolution</div>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900">Up to 1080p</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">Quality Instagram exposes</div>
           </div>
           <div className="h-8 w-px bg-slate-200 hidden sm:block" />
           <div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">0 ms</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">Account Footprint</div>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900">None</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">Accounts required</div>
           </div>
           <div className="h-8 w-px bg-slate-200 hidden sm:block" />
           <div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">100%</div>
-            <div className="text-xs text-slate-500 font-medium mt-0.5">Free with No Limits</div>
+            <div className="text-2xl sm:text-3xl font-black text-slate-900">Free</div>
+            <div className="text-xs text-slate-500 font-medium mt-0.5">Rate-limited, no payment</div>
           </div>
           <div className="h-8 w-px bg-slate-200 hidden sm:block" />
           <div className="flex items-center gap-2 text-left">
-            <Shield className="h-7 w-7 text-emerald-500" />
+            <Shield className="h-7 w-7 text-emerald-500" aria-hidden="true" />
             <div>
-              <div className="text-sm font-bold text-slate-900">TLS 1.3 Encryption</div>
-              <div className="text-xs text-slate-500">Zero Server-Side Media Retention</div>
+              <div className="text-sm font-bold text-slate-900">HTTPS delivery</div>
+              <div className="text-xs text-slate-500">No media library or archive</div>
             </div>
           </div>
         </div>

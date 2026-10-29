@@ -3,6 +3,7 @@
 // Reason: _redirects 200-rewrites proved unreliable in this project, while the
 // middleware demonstrably runs on every request (staging noindex header).
 import { getSbConfig, sbList } from './supabase';
+import { INFO_PAGE_SEO } from '../../src/data/infoPages';
 
 // ---- sitemap ----
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -103,6 +104,10 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
   for (const g of guides) {
     const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
     xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod, 'weekly', '0.8');
+  }
+
+  for (const page of INFO_PAGE_SEO) {
+    xml += urlNode(`${origin}${page.path}`, page.updated, 'monthly', '0.6');
   }
 
   xml += `</urlset>`;

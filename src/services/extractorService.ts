@@ -25,18 +25,16 @@ export function detectInstagramUrlType(inputUrl: string): { isValid: boolean; de
     return { isValid: false, error: 'Please enter an Instagram URL.' };
   }
 
-  // Check if it looks like an Instagram URL or username
+  // Check if it looks like an Instagram URL
   const isInstagramDomain = /instagram\.com|instagr\.am/i.test(trimmed);
 
+  // Bare usernames used to be silently converted into /stories/{user}/ links,
+  // which the extractor rejects. Tell the visitor what is actually supported.
   if (!isInstagramDomain && !trimmed.startsWith('http')) {
-    // Might be a username for story or highlight
-    if (/^[a-zA-Z0-9._]+$/.test(trimmed)) {
-      return {
-        isValid: true,
-        detectedType: 'story',
-        cleanUrl: `https://www.instagram.com/stories/${trimmed}/`,
-      };
-    }
+    return {
+      isValid: false,
+      error: 'Enter a public post, Reel or IGTV link (for example https://www.instagram.com/reel/...). Usernames and story links are not supported.',
+    };
   }
 
   try {
@@ -49,11 +47,12 @@ export function detectInstagramUrlType(inputUrl: string): { isValid: boolean; de
     if (/^\/p\//i.test(pathname) || /^\/share\/p\//i.test(pathname)) {
       return { isValid: true, detectedType: 'video', cleanUrl: trimmed };
     }
-    if (/^\/stories\/highlights\//i.test(pathname) || /^\/s\//i.test(pathname)) {
-      return { isValid: true, detectedType: 'highlights', cleanUrl: trimmed };
-    }
-    if (/^\/stories\//i.test(pathname)) {
-      return { isValid: true, detectedType: 'story', cleanUrl: trimmed };
+    if (/^\/stories\//i.test(pathname) || /^\/s\//i.test(pathname)) {
+      return {
+        isValid: false,
+        error:
+          'Instagram story and highlight links are not supported by the current extractor. Use a public post, Reel or IGTV link instead.',
+      };
     }
     if (/^\/tv\//i.test(pathname)) {
       return { isValid: true, detectedType: 'video', cleanUrl: trimmed };
@@ -64,7 +63,7 @@ export function detectInstagramUrlType(inputUrl: string): { isValid: boolean; de
       return { isValid: true, detectedType: 'video', cleanUrl: trimmed };
     }
 
-    return { isValid: false, error: 'Invalid link. Please provide a valid Instagram post, reel, story, or highlight URL.' };
+    return { isValid: false, error: 'Invalid link. Please provide a public Instagram post, Reel or IGTV URL.' };
   } catch {
     return { isValid: false, error: 'Please enter a valid URL (e.g. https://www.instagram.com/p/...)' };
   }

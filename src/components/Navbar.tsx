@@ -133,11 +133,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onClick={() => onSelectTool(item.type)}
                 className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-150 ${
                   isActive
-                    ? 'bg-rose-50 text-rose-600 font-bold'
+                    ? 'bg-rose-50 text-rose-700 font-bold'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-rose-600' : 'text-slate-400'}`} />
+                <Icon className={`h-4 w-4 ${isActive ? 'text-rose-700' : 'text-slate-400'}`} />
                 <span>{item.label}</span>
                 {isActive && (
                   <span className="absolute -bottom-2 left-3 right-3 h-0.5 rounded-full bg-rose-500" />
@@ -166,7 +166,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               id="btn-language-selector"
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-2xs hover:bg-slate-50 focus:outline-hidden"
-              aria-label="Select Language"
+              aria-label={`Select language — current: ${currentLangObj.nativeName} (${currentLangObj.code.toUpperCase()})`}
             >
               <Globe className="h-3.5 w-3.5 text-slate-500" />
               <span className="font-semibold">{currentLangObj.flag} {currentLangObj.code.toUpperCase()}</span>
@@ -188,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className={`flex w-full items-center justify-between px-3 py-1.5 text-xs font-medium transition-colors ${
                       currentLanguage === lang.code
-                        ? 'bg-rose-50 text-rose-600 font-bold'
+                        ? 'bg-rose-50 text-rose-700 font-bold'
                         : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
@@ -244,11 +244,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }}
                   className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold ${
                     isActive
-                      ? 'bg-rose-50 text-rose-600'
+                      ? 'bg-rose-50 text-rose-700'
                       : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-rose-600' : 'text-slate-400'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-rose-700' : 'text-slate-400'}`} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -261,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onOpenPwaPrompt();
                 setMobileMenuOpen(false);
               }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-rose-600"
+              className="flex items-center gap-1.5 text-xs font-semibold text-rose-700"
             >
               <DownloadCloud className="h-4 w-4" />
               <span>{t.installApp}</span>

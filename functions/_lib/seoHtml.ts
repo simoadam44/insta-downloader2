@@ -7,8 +7,11 @@
 // Express production handler rewrite the shell per route without touching the
 // React app, the routes, or the downloader.
 //
-// Kept inside functions/_lib so Cloudflare's Pages Functions bundler never has
-// to resolve imports from outside the functions directory.
+// Kept inside functions/_lib; the only cross-directory import is the
+// dependency-free shared page data module, which the Pages Functions bundler
+// resolves at build time (verified with `wrangler pages functions build`).
+
+import { INFO_PAGE_IDS, type InfoPageId } from '../../src/data/infoPages';
 
 // Primary canonical host. The apex 301s here (see resolveCanonicalRedirect),
 // so every canonical, og:url, sitemap and schema URL must use this origin.
@@ -42,6 +45,7 @@ export interface PageHeadMeta {
 export type RouteInfo =
   | { kind: 'home'; path: '/' }
   | { kind: 'admin'; path: string }
+  | { kind: 'info'; infoId: InfoPageId; path: string }
   | { kind: 'lang'; lang: LanguageCode; path: string }
   | { kind: 'tool'; lang: LanguageCode; toolSlug: ToolSlug; path: string }
   | { kind: 'lang-tool'; lang: LanguageCode; toolSlug: ToolSlug; path: string }
@@ -155,6 +159,12 @@ export function parseRoutePath(pathname: string): RouteInfo {
   }
 
   if (segments.length === 1) {
+    // Static informational/legal pages are resolved before the keyword engine
+    // so a keyword page can never shadow /privacy, /terms, /faq, etc.
+    const infoId = (INFO_PAGE_IDS as readonly string[]).includes(lower[0])
+      ? (lower[0] as InfoPageId)
+      : null;
+    if (infoId) return { kind: 'info', infoId, path: `/${infoId}` };
     if ((LANGUAGE_CODES as readonly string[]).includes(lower[0])) {
       // The language root renders the video tool, so it consolidates there
       // (this is exactly what the client-side SEO code already does).
