@@ -1,8 +1,9 @@
-# IGSaveGo — Instagram Video / Reels / Photo Downloader
+# IGSaveGo — Instagram & Bluesky Media Downloader
 
 A full-stack React + Express site for downloading public Instagram media (videos,
-reels, photos, stories, highlights) in HD, with programmatic SEO pages, a blog,
-and an admin dashboard.
+reels, photos, stories, highlights) in HD, plus public Bluesky (AT Protocol) videos
+and images as their original uploads — with programmatic SEO pages, a blog, and an
+admin dashboard.
 
 ---
 
@@ -24,6 +25,7 @@ npm run dev
 | --- | --- |
 | الصفحة الرئيسية | http://localhost:3000/ |
 | صفحة الأدوات (مثال) | http://localhost:3000/en/video-downloader |
+| أداة Bluesky | http://localhost:3000/bluesky-downloader |
 | صفحة كلمة مفتاحية | http://localhost:3000/instagram-video-downloader |
 | المدونة | http://localhost:3000/blog |
 | لوحة التحكم | http://localhost:3000/admin |
@@ -64,8 +66,11 @@ npm start         # تشغيل نسخة الإنتاج من dist/server.cjs
 | `SESSION_SECRET` | توقيع جلسات الإدارة HMAC (**إلزامي في الإنتاج**) |
 | `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | صفحات الكلمات المفتاحية، المدونة، وإعدادات اللوحة المشتركة |
 | `GEMINI_API_KEY` | زر «توليد بالذكاء الاصطناعي» في اللوحة |
-| `RAPIDAPI_KEY` / `COBALT_API_URL` / `IG_SESSIONID` | بدائل اختيارية لاستخراج الوسائط |
+| `RAPIDAPI_KEY` / `COBALT_API_URL` / `IG_SESSIONID` | بدائل اختيارية لاستخراج وسائط إنستقرام |
 | `VITE_API_BASE_URL` | فصل الواجهة عن الخادم (Vercel + خادم منفصل) |
+
+أداة Bluesky لا تحتاج أي مفتاح أو حساب: تستخدم نقاط النهاية العامة لـ AT Protocol
+(`public.api.bsky.app` ثم `com.atproto.sync.getBlob` على خادم بيانات المؤلف).
 
 بدون Supabase سيعمل الموقع بالبيانات الافتراضية المدمجة، وستظهر في الطرفية
 استجابات `503` متوقعة من `/api/site-settings` و`/api/keyword-pages`
@@ -76,7 +81,7 @@ npm start         # تشغيل نسخة الإنتاج من dist/server.cjs
 ```
 server.ts              خادم Express: استخراج، بروكسي وسائط، إدارة، SEO، Vite middleware
 src/                   واجهة React (المكونات، الخدمات، بيانات i18n وSEO)
-lib/                   Supabase admin + مولّد sitemap
+lib/                   Supabase admin + مولّد sitemap + استخراج Bluesky المشترك
 api/                   دوال Vercel (نسخة من نفس نقاط النهاية)
 functions/             دوال Netlify/Cloudflare (middleware + API)
 supabase/*.sql         مخطط قاعدة البيانات

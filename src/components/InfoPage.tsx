@@ -6,6 +6,10 @@ interface InfoPageProps {
   page: InfoPageContent;
   /** Configured contact address from branding settings. */
   contactEmail: string;
+  /** Optional interactive tool rendered directly under the page header. */
+  widget?: React.ReactNode;
+  /** Optional badge label; the informational pages use the default. */
+  badge?: string;
 }
 
 // rose-700 keeps inline links above the 4.5:1 contrast ratio at 14px on the
@@ -24,7 +28,7 @@ const linkClass =
  * - content is plain text in the DOM, not hidden in an accordion, so it is
  *   readable, selectable and indexable.
  */
-export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail }) => {
+export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail, widget, badge }) => {
   const email = (contactEmail || 'support@igsavego.com').trim();
 
   const renderInline = (text: string, keyPrefix: string): React.ReactNode[] => {
@@ -147,7 +151,7 @@ export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail }) => {
 
           <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-200/80 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-rose-700">
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            IGSaveGo · Information
+            {badge || 'IGSaveGo · Information'}
           </div>
 
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">{page.h1}</h1>
@@ -166,6 +170,10 @@ export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail }) => {
           </p>
         </div>
       </header>
+
+      {/* Optional interactive tool, rendered under the page header so the
+          downloader is reachable without scrolling past the article. */}
+      {widget && <div className="border-b border-slate-100 bg-white">{widget}</div>}
 
       {/* Body */}
       <div className="bg-white py-10 sm:py-14">

@@ -9,6 +9,7 @@ import { readFile } from 'fs/promises';
 // production bundle (dist/server.cjs) has zero dev-dependency requires
 // and runs on a slim `npm ci --omit=dev` image (Back4App/Render/etc).
 import { buildSitemapXml } from './lib/sitemapBuilder';
+import { BlueskyError, extractBlueskyPost } from './lib/blueskyExtract';
 import { resolvePageHeadMeta } from './functions/_lib/pageMeta';
 import { injectSeoHead, resolveCanonicalOrigin } from './functions/_lib/seoHtml';
 import {
@@ -65,12 +66,18 @@ interface RateLimitEntry {
 }
 const rateLimitStores: Record<string, Map<string, RateLimitEntry>> = {
   extract: new Map(),
+  bluesky: new Map(),
   proxy: new Map(),
   adminLogin: new Map(),
   aiGenerate: new Map(),
 };
 
-function checkRateLimit(key: string, storeName: 'extract' | 'proxy' | 'adminLogin' | 'aiGenerate', maxRequests: number, windowMs: number): boolean {
+function checkRateLimit(
+  key: string,
+  storeName: 'extract' | 'bluesky' | 'proxy' | 'adminLogin' | 'aiGenerate',
+  maxRequests: number,
+  windowMs: number
+): boolean {
   const now = Date.now();
   const store = rateLimitStores[storeName];
   const entry = store.get(key);
@@ -295,6 +302,11 @@ function isAllowedMediaUrl(inputUrl: string): { allowed: boolean; reason?: strin
       'unsplash.com',
       'pixabay.com',
       'googleapis.com',
+      // Bluesky / AT Protocol: the AppView CDN and the PDS blob hosts
+      // (accounts live on *.host.bsky.network).
+      'bsky.app',
+      'bsky.network',
+      'bsky.social',
     ];
 
     // Must strictly match root domain or be a valid subdomain (e.g. .cdninstagram.com)
@@ -1215,6 +1227,49 @@ app.all('/api/extract', async (req: Request, res: Response) => {
   }
 });
 
+// Bluesky (AT Protocol) extractor API
+// Same contract as /api/extract: GET ?url= or POST { url }. The heavy lifting
+// lives in lib/blueskyExtract.ts (shared with the Cloudflare function) so the
+// three hosts cannot drift apart.
+app.all('/api/bluesky', async (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(clientIp, 'bluesky', 30, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+  }
+
+  const rawUrl = String((req.query.url as string) || req.body?.url || '').trim();
+  if (!rawUrl) {
+    return res.status(400).json({
+      error:
+        'Paste a public Bluesky post link, for example https://bsky.app/profile/name.bsky.social/post/3kabc123xyz',
+    });
+  }
+  if (rawUrl.length > 2048) {
+    return res.status(414).json({ error: 'URL is too long.' });
+  }
+
+  try {
+    const result = await extractBlueskyPost(rawUrl);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof BlueskyError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error('Bluesky extraction error:', error);
+    return res
+      .status(502)
+      .json({ error: 'Could not read that Bluesky post. Please check the link and try again.' });
+  }
+});
+
 // 3. Media Stream Proxy (bypasses CORS and referrer locks, enforces attachment download)
 app.get('/api/proxy-media', async (req: Request, res: Response) => {
   try {
@@ -1247,10 +1302,18 @@ app.get('/api/proxy-media', async (req: Request, res: Response) => {
       .substring(0, 80) || 'instagram_media.mp4';
 
     // Forward range header if present for smooth video seeking
+    const upstreamHost = mediaCheck.urlObj?.hostname.toLowerCase() || '';
+    const isBlueskyHost =
+      upstreamHost === 'bsky.app' ||
+      upstreamHost.endsWith('.bsky.app') ||
+      upstreamHost === 'bsky.network' ||
+      upstreamHost.endsWith('.bsky.network') ||
+      upstreamHost === 'bsky.social' ||
+      upstreamHost.endsWith('.bsky.social');
     const headers: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-      Referer: 'https://www.instagram.com/',
+      Referer: isBlueskyHost ? 'https://bsky.app/' : 'https://www.instagram.com/',
       Accept: '*/*',
     };
 

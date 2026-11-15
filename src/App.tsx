@@ -10,6 +10,7 @@ import { WhyChooseUs } from './components/WhyChooseUs';
 import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
 import { InfoPage } from './components/InfoPage';
+import { BlueskyDownloader } from './components/BlueskyDownloader';
 import { DynamicSitemapModal } from './components/DynamicSitemapModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import {
@@ -642,6 +643,8 @@ export default function App() {
           <InfoPage
             page={infoPageById(infoPageId) || INFO_PAGES.about}
             contactEmail={brandingSettings.contactEmail || 'support@igsavego.com'}
+            badge={infoPageId === 'bluesky-downloader' ? 'IGSaveGo · Bluesky tool' : undefined}
+            widget={infoPageId === 'bluesky-downloader' ? <BlueskyDownloader /> : undefined}
           />
         ) : blogView ? (
           blogView.type === 'hub' ? (

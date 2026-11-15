@@ -8,6 +8,7 @@ import {
   Music,
   Shield,
   Zap,
+  CloudSun,
 } from 'lucide-react';
 import { LanguageCode, MediaType } from '../types';
 
@@ -101,7 +102,8 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
           </h2>
           <p className="mt-3 text-sm sm:text-base text-slate-600">
             Built for public Instagram posts, Reels and IGTV videos — with the unsupported
-            formats stated up front instead of hidden behind a promise.
+            formats stated up front instead of hidden behind a promise. A separate tool does
+            the same for public Bluesky posts.
           </p>
         </div>
 
@@ -135,6 +137,29 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
             );
           })}
         </div>
+
+        {/* Separate service callout: a real link so crawlers can follow it. */}
+        <a
+          href="/bluesky-downloader"
+          className="group mt-6 flex flex-col gap-4 rounded-3xl border border-sky-200/80 bg-gradient-to-r from-sky-50 via-white to-blue-50 p-6 text-left shadow-xs transition-all hover:border-sky-300 hover:shadow-lg hover:shadow-sky-200/40 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-md">
+              <CloudSun className="h-6 w-6" aria-hidden="true" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">Bluesky Video &amp; Image Downloader</h3>
+              <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">
+                Public bsky.app posts only. The tool returns the original MP4 or image file the
+                author uploaded, using the network&apos;s public API — no login, no app install.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 text-xs font-bold text-sky-700 group-hover:text-sky-800">
+            Open Bluesky tool
+            <span className="transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
+          </span>
+        </a>
 
         {/* Technical highlight bar */}
         <div className="mt-12 rounded-2xl border border-slate-200 bg-white p-6 shadow-xs flex flex-wrap items-center justify-around gap-6 text-center">

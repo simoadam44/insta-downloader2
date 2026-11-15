@@ -386,6 +386,9 @@ export function updateInfoPageSeo(
     tag.setAttribute('content', content);
   };
   setMeta('name', 'description', page.description);
+  if (page.keywords && page.keywords.length > 0) {
+    setMeta('name', 'keywords', page.keywords.join(', '));
+  }
   setMeta('name', 'robots', 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1');
   setMeta('property', 'og:title', page.title);
   setMeta('property', 'og:description', page.description);
@@ -453,6 +456,31 @@ export function updateInfoPageSeo(
       },
     },
   ];
+
+  // Tool pages host an interactive downloader, so they also describe it as a
+  // free WebApplication. Legal/informational pages stay WebPage-only.
+  if (page.tool) {
+    schemas.push({
+      type: 'WebApplication',
+      schema: {
+        '@context': 'https://schema.org',
+        '@type': 'WebApplication',
+        '@id': `${canonicalUrl}#webapp`,
+        name: `${siteName} - ${page.h1}`,
+        url: canonicalUrl,
+        inLanguage: 'en',
+        applicationCategory: 'MultimediaApplication',
+        operatingSystem: 'All (iOS, Android, Windows, macOS, Linux, Mobile)',
+        description: page.description,
+        offers: {
+          '@type': 'Offer',
+          price: '0',
+          priceCurrency: 'USD',
+          availability: 'https://schema.org/InStock',
+        },
+      },
+    });
+  }
 
   if (page.faqs && page.faqs.length > 0) {
     schemas.push({

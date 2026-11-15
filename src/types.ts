@@ -17,7 +17,7 @@ export interface QualityOption {
   resolution: string;
   fileSize: string;
   downloadUrl: string;
-  format: 'mp4' | 'jpg' | 'mp3';
+  format: 'mp4' | 'jpg' | 'png' | 'webp' | 'mp3';
   isHd?: boolean;
   isFullHd?: boolean;
   fps?: number;
@@ -33,7 +33,7 @@ export interface ExtractedMediaItem {
   quality: string;
   dimensions: string;
   fileSize: string;
-  format: 'mp4' | 'jpg';
+  format: 'mp4' | 'jpg' | 'png' | 'webp';
   availableQualities?: QualityOption[];
 }
 

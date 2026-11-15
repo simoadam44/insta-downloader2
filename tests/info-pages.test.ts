@@ -60,12 +60,21 @@ function allText(page: (typeof INFO_PAGES)[keyof typeof INFO_PAGES]): string {
 // 1. Route list and source-of-truth integrity
 // ---------------------------------------------------------------------------
 
-test('1. all seven informational routes exist exactly once', () => {
-  const expected = ['/about', '/contact', '/how-to-use', '/faq', '/privacy', '/terms', '/disclaimer'];
+test('1. all eight informational and tool routes exist exactly once', () => {
+  const expected = [
+    '/about',
+    '/contact',
+    '/how-to-use',
+    '/faq',
+    '/privacy',
+    '/terms',
+    '/disclaimer',
+    '/bluesky-downloader',
+  ];
   assert.deepEqual([...INFO_PAGE_PATHS].sort(), [...expected].sort());
-  assert.equal(INFO_PAGE_IDS.length, 7);
-  assert.equal(new Set(INFO_PAGE_IDS).size, 7);
-  assert.equal(INFO_PAGE_SEO.length, 7);
+  assert.equal(INFO_PAGE_IDS.length, 8);
+  assert.equal(new Set(INFO_PAGE_IDS).size, 8);
+  assert.equal(INFO_PAGE_SEO.length, 8);
 });
 
 test('2. every page has unique, non-empty SEO fields and content', () => {
@@ -280,7 +289,7 @@ test('14. resolvePageHeadMeta returns the authored metadata (no brand double-rep
   }
 });
 
-test('15. sitemap.xml lists all seven info pages on the www origin', async () => {
+test('15. sitemap.xml lists all eight info pages on the www origin', async () => {
   const response = await fetchRoute(`${ORIGIN}/sitemap.xml`);
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type') || '', /application\/xml/);

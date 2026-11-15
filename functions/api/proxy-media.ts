@@ -13,7 +13,7 @@ function isAllowed(urlStr: string): boolean {
       /^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254\.|0\.)/.test(h) ||
       /^\d+\.\d+\.\d+\.\d+$/.test(h)
     ) return false;
-    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com'];
+    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com', 'bsky.app', 'bsky.network', 'bsky.social'];
     return roots.some((r) => h === r || h.endsWith('.' + r));
   } catch {
     return false;

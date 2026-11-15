@@ -30,6 +30,10 @@ interface MediaResultCardProps {
   // Parent should re-extract the same URL to mint fresh links.
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  // Which service produced this result. Defaults to Instagram so existing
+  // pages keep their exact wording; 'bluesky' switches the card to the
+  // original-file labels the AT Protocol extractor can actually back up.
+  source?: 'instagram' | 'bluesky';
 }
 
 export const MediaResultCard: React.FC<MediaResultCardProps> = ({
@@ -38,6 +42,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
   onReset,
   onRefresh,
   isRefreshing,
+  source = 'instagram',
 }) => {
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
@@ -59,12 +64,32 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
   const isArabic = currentLanguage === 'ar';
+  const isBluesky = source === 'bluesky';
   const currentItem = media.items[activeSlideIndex] || media.items[0];
   const isCarousel = media.items.length > 1;
+
+  // Instagram results either carry real qualities or (rarely) none, in which
+  // case the legacy 1080p defaults below are used. Bluesky never gets those
+  // defaults: the card is built from the fields the AT Protocol response
+  // actually contains, so nothing about resolution or size is invented.
+  const blueskyQuality: QualityOption[] = [
+    {
+      id: 'original',
+      label: currentItem.format === 'mp4' ? 'Original video upload' : 'Original image upload',
+      quality: 'original',
+      resolution: currentItem.dimensions || '',
+      fileSize: currentItem.fileSize || '',
+      downloadUrl: currentItem.downloadUrl,
+      format: currentItem.format,
+      bitrate: 'Original file, no re-encode',
+    },
+  ];
 
   // Build 1080p Full HD quality
   const qualities: QualityOption[] = (currentItem.availableQualities && currentItem.availableQualities.length > 0)
     ? currentItem.availableQualities
+    : isBluesky
+    ? blueskyQuality
     : currentItem.type === 'video'
     ? [
         {
@@ -233,9 +258,11 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/90 p-6 text-center backdrop-blur-xs">
                   <RefreshCw className={`h-8 w-8 text-rose-400 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <p className="text-xs font-semibold text-white leading-relaxed">
-                    {isArabic
-                      ? 'انتهت صلاحية رابط المعاينة (روابط انستقرام مؤقتة). حدّث للحصول على رابط جديد فوراً.'
-                      : 'This preview link expired (Instagram links are temporary). Refresh to mint a fresh one.'}
+                    {isBluesky
+                      ? 'The preview could not load this file. Use the download button below, which requests the original file directly.'
+                      : isArabic
+                        ? 'انتهت صلاحية رابط المعاينة (روابط انستقرام مؤقتة). حدّث للحصول على رابط جديد فوراً.'
+                        : 'This preview link expired (Instagram links are temporary). Refresh to mint a fresh one.'}
                   </p>
                   {onRefresh && (
                     <button
@@ -358,11 +385,10 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 </div>
               )}
 
-              {/* AUDIO TRACK EXTRACTION — shown whenever a playable video exists,
-                  even when the backend sent no audio metadata (the MP4 stream
-                  itself is the audio source). Photo-only results have no audio
-                  stream, so nothing is shown for them. */}
-              {(media.audioTrack || currentItem.type === 'video') && (
+              {/* AUDIO TRACK EXTRACTION — Instagram only. Bluesky results
+                  point at the author's original upload, where a client-side
+                  MP3 transcode would be a separate claim we do not make. */}
+              {!isBluesky && (media.audioTrack || currentItem.type === 'video') && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-purple-200/80 bg-purple-50/60 p-3 text-xs">
                   <div className="flex items-center gap-2.5 truncate">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white shadow-2xs">
@@ -393,32 +419,40 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 </div>
               )}
 
-              {/* === 1080p FULL HD QUALITY SPECS BADGE === */}
+              {/* === QUALITY SPECS BADGE ===
+                  Instagram keeps its 1080p label; Bluesky shows the original
+                  upload's real format and aspect ratio only. */}
               <div className="mt-4 rounded-2xl border border-rose-100 bg-gradient-to-r from-rose-50/70 via-purple-50/50 to-pink-50/70 p-3.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-black bg-rose-600 text-white shadow-xs">
                       <Sparkles className="h-3.5 w-3.5" />
-                      1080p FULL HD
+                      {isBluesky ? 'ORIGINAL FILE' : '1080p FULL HD'}
                     </span>
                     <span className="text-xs font-bold text-slate-800">
                       {selectedQuality.label}
                     </span>
                   </div>
-                  <span className="text-xs font-bold text-rose-600 bg-white/90 px-2 py-0.5 rounded-md border border-rose-200/60">
-                    {selectedQuality.fileSize}
-                  </span>
+                  {selectedQuality.fileSize && (
+                    <span className="text-xs font-bold text-rose-600 bg-white/90 px-2 py-0.5 rounded-md border border-rose-200/60">
+                      {selectedQuality.fileSize}
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-2.5 flex items-center justify-between text-[11px] text-slate-600 bg-white/90 rounded-xl px-3 py-2 border border-slate-200/60">
                   <div className="flex items-center gap-1.5 truncate">
                     <Video className="h-3.5 w-3.5 text-rose-500 shrink-0" />
                     <span className="font-medium truncate">
-                      {selectedQuality.resolution} • {selectedQuality.bitrate || 'Ultra HD 60FPS'}
+                      {isBluesky
+                        ? [selectedQuality.resolution, selectedQuality.bitrate].filter(Boolean).join(' • ') || 'Original upload'
+                        : `${selectedQuality.resolution} • ${selectedQuality.bitrate || 'Ultra HD 60FPS'}`}
                     </span>
                   </div>
                   <span className="font-semibold text-slate-500 uppercase shrink-0">
-                    {currentItem.type === 'video' ? 'MP4 • H.264' : 'JPG • Original'}
+                    {isBluesky
+                      ? `${selectedQuality.format.toUpperCase()} • No re-encode`
+                      : currentItem.type === 'video' ? 'MP4 • H.264' : 'JPG • Original'}
                   </span>
                 </div>
               </div>
@@ -436,19 +470,27 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 {downloadingQualityId === selectedQuality.id ? (
                   <>
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    <span>{isArabic ? 'جاري التحميل بدقة 1080p...' : 'Downloading 1080p Full HD...'}</span>
+                    <span>
+                      {isBluesky
+                        ? 'Downloading original file...'
+                        : isArabic ? 'جاري التحميل بدقة 1080p...' : 'Downloading 1080p Full HD...'}
+                    </span>
                   </>
                 ) : (
                   <>
                     <Download className="h-5 w-5" />
                     <span>
-                      {currentItem.type === 'video'
-                        ? isArabic
-                          ? `تحميل الفيديو بدقة 1080p Full HD (${selectedQuality.fileSize})`
-                          : `Download Video • 1080p Full HD (${selectedQuality.fileSize})`
-                        : isArabic
-                        ? `تحميل الصورة بدقة 1080p Ultra HD (${selectedQuality.fileSize})`
-                        : `Download Photo • 1080p Ultra HD (${selectedQuality.fileSize})`}
+                      {isBluesky
+                        ? `Download ${selectedQuality.format.toUpperCase()}${
+                            selectedQuality.fileSize ? ` (${selectedQuality.fileSize})` : ''
+                          }`
+                        : currentItem.type === 'video'
+                          ? isArabic
+                            ? `تحميل الفيديو بدقة 1080p Full HD (${selectedQuality.fileSize})`
+                            : `Download Video • 1080p Full HD (${selectedQuality.fileSize})`
+                          : isArabic
+                            ? `تحميل الصورة بدقة 1080p Ultra HD (${selectedQuality.fileSize})`
+                            : `Download Photo • 1080p Ultra HD (${selectedQuality.fileSize})`}
                     </span>
                   </>
                 )}
@@ -470,9 +512,11 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 >
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   <span>
-                    {isArabic
-                      ? `تحميل جميع الشرائح (${media.items.length} وسائط) بدقة 1080p`
-                      : `Download All ${media.items.length} Slides in 1080p`}
+                    {isBluesky
+                      ? `Download all ${media.items.length} files`
+                      : isArabic
+                        ? `تحميل جميع الشرائح (${media.items.length} وسائط) بدقة 1080p`
+                        : `Download All ${media.items.length} Slides in 1080p`}
                   </span>
                 </button>
               )}
@@ -493,10 +537,10 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                  title="View on Instagram"
+                  title={isBluesky ? 'View on Bluesky' : 'View on Instagram'}
                 >
                   <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="hidden sm:inline">Instagram</span>
+                  <span className="hidden sm:inline">{isBluesky ? 'Bluesky' : 'Instagram'}</span>
                 </a>
               </div>
             </div>

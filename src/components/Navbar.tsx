@@ -11,6 +11,7 @@ import {
   Menu,
   X,
   ChevronDown,
+  CloudSun,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -145,6 +146,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             );
           })}
+          {/* Separate service, same header. A real <a> so the page is
+              crawlable and survives a hard refresh. */}
+          <a
+            href="/bluesky-downloader"
+            id="nav-link-bluesky"
+            className="relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <CloudSun className="h-4 w-4 text-sky-500" />
+            <span>Bluesky</span>
+          </a>
         </nav>
 
         {/* Right Tools: PWA, Language, Admin */}
@@ -254,6 +265,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               );
             })}
           </div>
+
+          <a
+            href="/bluesky-downloader"
+            className="mt-2 flex items-center gap-2 rounded-lg bg-sky-50 px-3 py-2.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+          >
+            <CloudSun className="h-4 w-4 text-sky-600" />
+            <span>Bluesky downloader</span>
+          </a>
 
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
             <button

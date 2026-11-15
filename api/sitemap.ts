@@ -21,9 +21,10 @@ const INFO_PAGES = [
   { path: '/contact', updated: '2026-10-27' },
   { path: '/how-to-use', updated: '2026-10-27' },
   { path: '/faq', updated: '2026-10-27' },
-  { path: '/privacy', updated: '2026-10-27' },
-  { path: '/terms', updated: '2026-10-27' },
-  { path: '/disclaimer', updated: '2026-10-27' },
+  { path: '/privacy', updated: '2026-11-15' },
+  { path: '/terms', updated: '2026-11-15' },
+  { path: '/disclaimer', updated: '2026-11-15' },
+  { path: '/bluesky-downloader', updated: '2026-11-15' },
 ];
 
 // Host allowlist: prevents Host-header poisoning of cached canonical URLs.

@@ -23,6 +23,7 @@ export const INFO_PAGE_IDS = [
   'privacy',
   'terms',
   'disclaimer',
+  'bluesky-downloader',
 ] as const;
 
 export type InfoPageId = (typeof INFO_PAGE_IDS)[number];
@@ -54,6 +55,10 @@ export interface InfoPage {
   sections: InfoSection[];
   /** Optional Q&A list, rendered as headings + answers (no accordion JS). */
   faqs?: { question: string; answer: string }[];
+  /** Optional meta keywords; only tool pages set this. */
+  keywords?: string[];
+  /** True when the page hosts an interactive tool (adds WebApplication schema). */
+  tool?: boolean;
   related: { label: string; href: string }[];
 }
 
@@ -638,9 +643,9 @@ const PRIVACY: InfoPage = {
   description:
     'What IGSaveGo processes when you use the downloader, which cookies and analytics are active, how long data is kept, and the choices available to you.',
   h1: 'Privacy Policy',
-  updated: INFO_PAGE_UPDATED,
+  updated: '2026-11-15',
   intro: [
-    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
+    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram or Bluesky downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
     'In short: you do not need an account, we do not keep a history of the links you submit, and we do not sell personal information. Our hosting provider processes standard request data to deliver the site, and Google Analytics 4 measures aggregate usage. Those two facts are explained in detail below.',
   ],
   sections: [
@@ -650,7 +655,7 @@ const PRIVACY: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'This policy applies to IGSaveGo at www.igsavego.com, including the downloader, the guides, and the informational pages. It does not apply to Instagram or to any other website you reach from a link. Those services have their own policies.',
+          text: 'This policy applies to IGSaveGo at www.igsavego.com, including the downloaders, the guides, and the informational pages. It does not apply to Instagram, Bluesky or any other website you reach from a link. Those services have their own policies.',
         },
       ],
     },
@@ -662,6 +667,7 @@ const PRIVACY: InfoPage = {
           type: 'list',
           items: [
             'Instagram links you paste into the downloader. These are needed to resolve the media you asked for.',
+            'Bluesky post links you paste into the Bluesky downloader. These are needed to read the post and locate its attached files.',
             'Messages you send to our contact address, including your email address, name if you include it, and the content of the message.',
             'Nothing else is required. There is no registration form, no payment flow, and no newsletter.',
           ],
@@ -670,11 +676,15 @@ const PRIVACY: InfoPage = {
     },
     {
       id: 'links',
-      heading: '3. How submitted Instagram links are processed',
+      heading: '3. How submitted links are processed',
       blocks: [
         {
           type: 'p',
-          text: 'When you press Download, your browser sends the link to /api/extract on this domain. The server reads the shortcode from the link and makes outbound requests to Instagram\'s public endpoints and, when needed, to fallback providers that relay the same public content. The response contains the media information, including the link you submitted, which is returned to your browser so the page can show what was processed.',
+          text: 'When you press Download, your browser sends an Instagram link to /api/extract on this domain. The server reads the shortcode from the link and makes outbound requests to Instagram\'s public endpoints and, when needed, to fallback providers that relay the same public content. The response contains the media information, including the link you submitted, which is returned to your browser so the page can show what was processed.',
+        },
+        {
+          type: 'p',
+          text: 'A Bluesky link is sent to /api/bluesky. That endpoint asks public.api.bsky.app for the post, resolves the author\'s data server through the public PLC directory, and requests the attached file from that server. No Bluesky password, app password or access token is sent, and the link is not stored in a database.',
         },
         {
           type: 'p',
@@ -710,7 +720,7 @@ const PRIVACY: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'IGSaveGo does not store downloaded videos or photos in its own storage. The media proxy streams the file from Instagram\'s CDN to your browser. The proxy response carries a cache header that allows our CDN provider to keep a temporary edge copy for up to 24 hours, which reduces repeated transfers; that copy is held by the CDN, not in a media library, and is not listed or searchable on this site.',
+          text: 'IGSaveGo does not store downloaded videos or photos in its own storage. The media proxy streams the file from Instagram\'s CDN (or from Bluesky\'s file hosts for Bluesky results) to your browser. The proxy response carries a cache header that allows our CDN provider to keep a temporary edge copy for up to 24 hours, which reduces repeated transfers; that copy is held by the CDN, not in a media library, and is not listed or searchable on this site.',
         },
         {
           type: 'p',
@@ -899,10 +909,10 @@ const TERMS: InfoPage = {
   description:
     'The rules that apply when you use IGSaveGo: acceptable use, content rights, prohibited activity, availability, liability and contact details.',
   h1: 'Terms of Use',
-  updated: INFO_PAGE_UPDATED,
+  updated: '2026-11-15',
   intro: [
-    'These Terms of Use ("Terms") govern your use of www.igsavego.com and the downloader it provides. By using the site, you agree to them. If you do not agree, please do not use the service.',
-    'IGSaveGo is a free utility for saving publicly accessible Instagram media. It is independent from Instagram and Meta, and it does not grant you rights to content you do not own.',
+    'These Terms of Use ("Terms") govern your use of www.igsavego.com and the downloaders it provides. By using the site, you agree to them. If you do not agree, please do not use the service.',
+    'IGSaveGo is a free utility for saving publicly accessible Instagram and Bluesky media. It is independent from Instagram, Meta and Bluesky, and it does not grant you rights to content you do not own.',
   ],
   sections: [
     {
@@ -911,11 +921,11 @@ const TERMS: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'IGSaveGo accepts a public Instagram link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
+          text: 'IGSaveGo accepts a public Instagram or Bluesky link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
         },
         {
           type: 'p',
-          text: 'The service is not affiliated with, endorsed by or sponsored by Instagram or Meta Platforms, Inc. References to Instagram are descriptive only.',
+          text: 'The service is not affiliated with, endorsed by or sponsored by Instagram, Meta Platforms, Inc. or Bluesky Social PBC. References to those platforms are descriptive only, and the Bluesky tool reads only public AT Protocol data.',
         },
       ],
     },
@@ -971,7 +981,7 @@ const TERMS: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'The service depends on Instagram\'s public endpoints and on third-party infrastructure. Your use of Instagram is governed by Instagram\'s own terms and policies. Links to external websites are provided for convenience; we do not control their content or practices and are not responsible for them.',
+          text: 'The service depends on Instagram\'s public endpoints, on Bluesky\'s public AT Protocol endpoints, and on third-party infrastructure. Your use of those platforms is governed by their own terms and policies. Links to external websites are provided for convenience; we do not control their content or practices and are not responsible for them.',
         },
       ],
     },
@@ -1050,10 +1060,10 @@ const DISCLAIMER: InfoPage = {
   description:
     'IGSaveGo is an independent tool with no affiliation to Instagram or Meta. What that means for trademarks, content ownership, availability and responsible use.',
   h1: 'Disclaimer',
-  updated: INFO_PAGE_UPDATED,
+  updated: '2026-11-15',
   intro: [
     'This disclaimer explains the limits of what IGSaveGo is and does. It is written to be read, not to hide a policy issue behind legal wording.',
-    'IGSaveGo is an independent utility. It is not affiliated with, endorsed by, sponsored by, authorised by or officially connected to Instagram or Meta Platforms, Inc.',
+    'IGSaveGo is an independent utility. It is not affiliated with, endorsed by, sponsored by, authorised by or officially connected to Instagram, Meta Platforms, Inc. or Bluesky Social PBC.',
   ],
   sections: [
     {
@@ -1062,7 +1072,7 @@ const DISCLAIMER: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'IGSaveGo is operated independently. It does not represent Instagram or Meta, does not act on their behalf, and is not part of their services. Any support request about an Instagram account, post, suspension or privacy setting must be directed to Instagram.',
+          text: 'IGSaveGo is operated independently. It does not represent Instagram, Meta or Bluesky, does not act on their behalf, and is not part of their services. Any support request about an Instagram account, a Bluesky account, a post, a suspension or a privacy setting must be directed to that platform.',
         },
       ],
     },
@@ -1072,7 +1082,7 @@ const DISCLAIMER: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: '"Instagram", "Reels", "IGTV", the Instagram logo and related marks are trademarks or registered trademarks of Meta Platforms, Inc. or its affiliates. They are used on this site only to describe the platform whose public links the tool accepts. All other trademarks belong to their respective owners. Their use does not imply any endorsement or partnership.',
+          text: '"Instagram", "Reels", "IGTV", the Instagram logo and related marks are trademarks or registered trademarks of Meta Platforms, Inc. or its affiliates. "Bluesky", "bsky.app" and related marks belong to Bluesky Social PBC. They are used on this site only to describe the platforms whose public links the tools accept. All other trademarks belong to their respective owners. Their use does not imply any endorsement or partnership.',
         },
       ],
     },
@@ -1160,6 +1170,220 @@ const DISCLAIMER: InfoPage = {
   related: relatedFor('disclaimer'),
 };
 
+const BLUESKY: InfoPage = {
+  id: 'bluesky-downloader',
+  path: '/bluesky-downloader',
+  title: 'Bluesky Video and Image Downloader — Original Files',
+  description:
+    'Paste a public bsky.app post link and download its video or images as the original MP4, JPG or PNG files the author uploaded. Free, no login or app.',
+  h1: 'Bluesky Video and Image Downloader',
+  updated: '2026-11-15',
+  tool: true,
+  keywords: [
+    'bluesky downloader',
+    'download bluesky video',
+    'bluesky image downloader',
+    'bsky.app downloader',
+    'bluesky video saver',
+    'download bluesky post',
+    'bluesky mp4 download',
+    'at protocol media download',
+  ],
+  intro: [
+    'This page saves the video or images attached to a public Bluesky post. Paste the post link, the tool reads the post through Bluesky\'s public API, and it offers the files the author uploaded.',
+    'It works the same way as the Instagram downloader on this site: one field, no account sign-in, no browser extension and nothing to install. Bluesky is a separate network with its own rules, so the tool and its limits are described separately here.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this Bluesky downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Bluesky stores posts as records in the AT Protocol, an open social-data standard. A link such as https://bsky.app/profile/name.bsky.social/post/3kabc123xyz names an account and one post record. The tool asks the public AppView for that record, then asks the server that hosts the author\'s data for the attached files.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Paste a public post link into the field above, for example https://bsky.app/profile/name.bsky.social/post/3kabc123xyz.',
+            'Press Get media. The page calls the IGSaveGo Bluesky endpoint, which resolves the profile name to a permanent account identifier and reads the post.',
+            'The result card appears with the author, the post text, and a download button for each attached video or image.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'No Bluesky password, app password or API key is requested at any point. The endpoints used are public read-only endpoints of the network.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Video posts: the MP4 file attached to the post is offered as a download.',
+            'Image posts: every image in the post is listed separately, up to the four images a Bluesky post can hold.',
+            'Posts that quote another post while attaching their own video or images: the media attached to the post you pasted is what gets extracted.',
+            'Posts that contain both a video and nothing else, or a single image, work the same way: one result, one button.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Text-only posts, posts with only a link preview card, and posts whose only media belongs to a different post are not extracted. Those cases return a plain message instead of an invented result.',
+        },
+      ],
+    },
+    {
+      id: 'quality',
+      heading: 'Original files, not screen recordings',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Bluesky\'s web player streams an adaptive playlist, which is not a single file you can save. The downloader takes a different route: the post record contains the identity of the uploaded file, and the author\'s data server returns that exact file. Nothing is re-encoded, re-compressed or recorded from the screen.',
+        },
+        {
+          type: 'table',
+          head: ['Media', 'What you get', 'What the result card shows'],
+          rows: [
+            ['Video', 'The uploaded MP4 file', 'Format, aspect ratio and the file size reported by the network'],
+            ['Image', 'The uploaded image in its original format, such as JPEG or PNG', 'Format and the size reported by the network'],
+            ['Quality choices', 'None are invented: one original file per attachment', 'No 720p or 1080p labels unless the network actually provides them'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Because the download is the original upload, its size can be larger than the preview. What you see in the result card is read from the post at the moment you request it, so it reflects the file that exists now, not a fixed template.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Private or logged-in-only content: only posts that the public API can read are supported.',
+            'Deleted posts, posts removed by moderation, and accounts that have blocked the request return an error instead of media.',
+            'Profile pages, feeds, custom feeds, lists and search results are not post links and are rejected.',
+            'Media that exists only inside a quoted post is not extracted from the quoting post. Open the original post and paste its link.',
+            'There is no whole-account, whole-feed or bulk download, no follower export and no archive of past posts.',
+            'The tool does not edit, watermark, transcode or merge files. It hands over what the author published.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and requests',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No Bluesky account is linked, no cookie is set for Bluesky, and the file is streamed to your browser rather than stored on the server. The endpoint is rate-limited to 30 requests per minute per IP address to keep it usable.',
+        },
+        {
+          type: 'p',
+          text: 'Most Bluesky accounts are hosted on Bluesky\'s own servers, and those files are delivered through this site\'s media proxy so the download starts with one click. An account can also be hosted on an independent server; in that case the result card links straight to that server, and the download opens on a third-party host. The card says so when it happens.',
+        },
+      ],
+    },
+    {
+      id: 'responsible-use',
+      heading: 'Copyright and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'A post being public does not make its content free to reuse. The video or image still belongs to the person who made it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the author allows, ask permission when you need more, and credit the creator when you share a link.',
+        },
+        {
+          type: 'p',
+          text: 'IGSaveGo is independent and is not affiliated with Bluesky Social PBC. "Bluesky" and "bsky.app" are used only to describe the network whose public links this tool reads.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is the Bluesky downloader free?',
+      answer:
+        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for Bluesky downloads on this page.',
+    },
+    {
+      question: 'Do I need a Bluesky account or the Bluesky app?',
+      answer:
+        'No. You only need the public link to a post. The page reads the post through Bluesky\'s public API, so you can be logged out of Bluesky in every browser tab.',
+    },
+    {
+      question: 'Which Bluesky links are supported?',
+      answer:
+        'Post links in the form https://bsky.app/profile/name.bsky.social/post/3kabc123xyz, including links that use the account\'s permanent identifier instead of its handle. Profile, feed, list and search URLs are not supported.',
+    },
+    {
+      question: 'Can I download a Bluesky video?',
+      answer:
+        'Yes, when the post contains a video. The tool returns the MP4 file that the author uploaded, not a recording of the player, and the result card shows the file size reported by the network.',
+    },
+    {
+      question: 'Can I download photos from a Bluesky post?',
+      answer:
+        'Yes. A post with images lists each image separately, up to the four that a Bluesky post can contain. Each image keeps its uploaded format, which is commonly JPEG and can also be PNG or WebP.',
+    },
+    {
+      question: 'What quality and format do I get?',
+      answer:
+        'You get the original uploaded file. Videos are MP4 as uploaded; images keep their original format. The result card reports the real aspect ratio and size it received, so there are no invented resolution labels.',
+    },
+    {
+      question: 'Why is there no 720p or 1080p choice?',
+      answer:
+        'Because Bluesky does not expose several downloadable renditions for a post. There is one uploaded file per attachment, so offering a list of resolutions would be misleading. The original file is normally the best copy available.',
+    },
+    {
+      question: 'Why does a post with media say it has nothing to download?',
+      answer:
+        'The post may be text-only or contain only a link card, or the media may belong to a quoted post rather than the post you pasted. Open the post that actually contains the video or image and paste that link.',
+    },
+    {
+      question: 'Can I download from a private or logged-in-only account?',
+      answer:
+        'No. The tool uses public read endpoints, so it cannot see content that requires a session, a block relationship or another access condition. It also cannot read deleted or moderated posts.',
+    },
+    {
+      question: 'Why did the download open a different website?',
+      answer:
+        'An account can be hosted on an independent server rather than Bluesky\'s own infrastructure. In that case the file is served directly by that server, which is why the result card notes it. Bluesky\'s own hosted files are delivered through this site\'s proxy.',
+    },
+    {
+      question: 'Does the tool store my links or the downloaded files?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded posts. Standard request logs and rate-limit counters are covered by the privacy policy.',
+    },
+    {
+      question: 'How many downloads can I request?',
+      answer:
+        'The Bluesky endpoint accepts up to 30 requests per minute from one IP address. Downloading the files from a result card does not count as a new extraction request.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s Bluesky post?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the author\'s wishes, and do not present someone else\'s work as your own.',
+    },
+    {
+      question: 'Does this work on a phone?',
+      answer:
+        'Yes. The page is a normal web page: open it in Safari on iPhone or Chrome on Android, paste the post link and use the download button. The file is saved through your browser\'s download flow.',
+    },
+  ],
+  related: [
+    ...relatedFor('bluesky-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Instagram Photo Downloader', href: '/en/photo-downloader' },
+  ],
+};
+
 export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   about: ABOUT,
   contact: CONTACT,
@@ -1168,6 +1392,7 @@ export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   privacy: PRIVACY,
   terms: TERMS,
   disclaimer: DISCLAIMER,
+  'bluesky-downloader': BLUESKY,
 };
 
 /** Returns the page content for a pathname, or null when it is not a static page. */

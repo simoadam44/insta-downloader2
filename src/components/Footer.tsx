@@ -12,6 +12,7 @@ import {
   Mail,
   HelpCircle,
   ListChecks,
+  CloudSun,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -29,6 +30,7 @@ interface FooterProps {
 const infoLinks = [
   { href: '/about', label: 'About Us', icon: Info },
   { href: '/how-to-use', label: 'How to Use', icon: ListChecks },
+  { href: '/bluesky-downloader', label: 'Bluesky Downloader', icon: CloudSun },
   { href: '/faq', label: 'FAQ', icon: HelpCircle },
   { href: '/contact', label: 'Contact Us', icon: Mail },
   { href: '/blog', label: 'Guides & Blog', icon: BookOpen },
