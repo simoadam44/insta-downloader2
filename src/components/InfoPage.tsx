@@ -156,18 +156,25 @@ export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail, widget, 
 
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">{page.h1}</h1>
 
-          <div className="mt-4 space-y-3">
-            {page.intro.map((paragraph, index) => (
-              <p key={`intro-${index}`} className="text-sm sm:text-base leading-7 text-slate-600">
-                {renderInline(paragraph, `intro-${index}`)}
-              </p>
-            ))}
-          </div>
+          {/* Tool pages keep the hero to the title only: their intro and the
+              updated date sit below the downloader, right above the in-page
+              navigation, so the tool stays in view without scrolling. */}
+          {!page.tool && (
+            <>
+              <div className="mt-4 space-y-3">
+                {page.intro.map((paragraph, index) => (
+                  <p key={`intro-${index}`} className="text-sm sm:text-base leading-7 text-slate-600">
+                    {renderInline(paragraph, `intro-${index}`)}
+                  </p>
+                ))}
+              </div>
 
-          <p className="mt-5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
-            <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
-            Last updated: <time dateTime={page.updated}>{updatedLabel}</time>
-          </p>
+              <p className="mt-5 flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                Last updated: <time dateTime={page.updated}>{updatedLabel}</time>
+              </p>
+            </>
+          )}
         </div>
       </header>
 
@@ -178,6 +185,20 @@ export const InfoPage: React.FC<InfoPageProps> = ({ page, contactEmail, widget, 
       {/* Body */}
       <div className="bg-white py-10 sm:py-14">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          {page.tool && (
+            <div className="mb-8 space-y-3">
+              {page.intro.map((paragraph, index) => (
+                <p key={`intro-${index}`} className="text-sm sm:text-base leading-7 text-slate-600">
+                  {renderInline(paragraph, `intro-${index}`)}
+                </p>
+              ))}
+              <p className="flex items-center gap-1.5 pt-2 text-xs font-medium text-slate-500">
+                <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
+                Last updated: <time dateTime={page.updated}>{updatedLabel}</time>
+              </p>
+            </div>
+          )}
+
           {page.sections.length >= 5 && (
             <nav aria-label="On this page" className="mb-10 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">On this page</h2>

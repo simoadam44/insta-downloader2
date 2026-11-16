@@ -1,17 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Video,
-  Image as ImageIcon,
   Sparkles,
-  CircleDot,
-  FolderHeart,
   Globe,
-  DownloadCloud,
   ShieldAlert,
   Menu,
   X,
   ChevronDown,
   CloudSun,
+  Linkedin,
+  Pin,
+  Gamepad2,
+  MonitorPlay,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -28,7 +27,6 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentLanguage,
-  activeTool,
   branding,
   onSelectTool,
   onSelectLanguage,
@@ -57,12 +55,24 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navItems: { type: MediaType; label: string; icon: React.ElementType }[] = [
-    { type: 'video', label: t.navVideo, icon: Video },
-    { type: 'photo', label: t.navPhoto, icon: ImageIcon },
-    { type: 'reels', label: t.navReels, icon: Sparkles },
-    { type: 'story', label: t.navStory, icon: CircleDot },
-    { type: 'highlights', label: t.navHighlights, icon: FolderHeart },
+  // The header now advertises the site's platforms, not Instagram's media tabs:
+  // the Instagram tools (video, photo, reels, story, highlights) live on the
+  // home page itself. One list, used by the desktop nav and the mobile drawer,
+  // so both stay in sync.
+  const platformLinks: {
+    id: string;
+    href: string;
+    label: string;
+    icon: React.ElementType;
+    iconClass: string;
+    mobileClass: string;
+  }[] = [
+    { id: 'nav-link-bluesky', href: '/bluesky-downloader', label: 'Bluesky', icon: CloudSun, iconClass: 'text-sky-500', mobileClass: 'bg-sky-50 text-sky-800 hover:bg-sky-100' },
+    { id: 'nav-link-linkedin', href: '/linkedin-downloader', label: 'LinkedIn', icon: Linkedin, iconClass: 'text-blue-600', mobileClass: 'bg-blue-50 text-blue-800 hover:bg-blue-100' },
+    { id: 'nav-link-pinterest', href: '/pinterest-downloader', label: 'Pinterest', icon: Pin, iconClass: 'text-red-600', mobileClass: 'bg-red-50 text-red-800 hover:bg-red-100' },
+    { id: 'nav-link-kick', href: '/kick-downloader', label: 'Kick', icon: Gamepad2, iconClass: 'text-emerald-600', mobileClass: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100' },
+    { id: 'nav-link-lemon8', href: '/lemon8-downloader', label: 'Lemon8', icon: Sparkles, iconClass: 'text-amber-500', mobileClass: 'bg-amber-50 text-amber-800 hover:bg-amber-100' },
+    { id: 'nav-link-loom', href: '/loom-downloader', label: 'Loom', icon: MonitorPlay, iconClass: 'text-sky-600', mobileClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200' },
   ];
 
   return (
@@ -122,55 +132,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : null}
         </button>
 
-        {/* Desktop Navigation Links */}
-        <nav className="hidden items-center gap-1 md:flex">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTool === item.type;
+        {/* Desktop Navigation Links: the site's own downloader pages. A real
+            <a> so each page is crawlable and survives a hard refresh. */}
+        <nav
+          aria-label="Downloaders for other platforms"
+          className="hidden items-center gap-0.5 rounded-xl border border-slate-200/70 bg-slate-50/70 p-1 md:flex"
+        >
+          {platformLinks.map((link) => {
+            const Icon = link.icon;
             return (
-              <button
-                key={item.type}
-                id={`nav-link-${item.type}`}
-                onClick={() => onSelectTool(item.type)}
-                className={`relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-150 ${
-                  isActive
-                    ? 'bg-rose-50 text-rose-700 font-bold'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
+              <a
+                key={link.id}
+                href={link.href}
+                id={link.id}
+                aria-label={`${link.label} downloader`}
+                title={`${link.label} downloader`}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-slate-600 transition-colors duration-150 hover:bg-white hover:text-slate-900 hover:shadow-2xs"
               >
-                <Icon className={`h-4 w-4 ${isActive ? 'text-rose-700' : 'text-slate-400'}`} />
-                <span>{item.label}</span>
-                {isActive && (
-                  <span className="absolute -bottom-2 left-3 right-3 h-0.5 rounded-full bg-rose-500" />
-                )}
-              </button>
+                <Icon className={`h-4 w-4 ${link.iconClass}`} aria-hidden="true" />
+                {/* Labels appear once there is room; below lg the icons keep the
+                    row on one line without pushing the controls off-screen. */}
+                <span className="hidden lg:inline">{link.label}</span>
+              </a>
             );
           })}
-          {/* Separate service, same header. A real <a> so the page is
-              crawlable and survives a hard refresh. */}
-          <a
-            href="/bluesky-downloader"
-            id="nav-link-bluesky"
-            className="relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900"
-          >
-            <CloudSun className="h-4 w-4 text-sky-500" />
-            <span>Bluesky</span>
-          </a>
         </nav>
 
         {/* Right Tools: PWA, Language, Admin */}
         <div className="flex items-center gap-2">
-          {/* PWA App Install Button */}
-          <button
-            id="btn-install-app-nav"
-            onClick={onOpenPwaPrompt}
-            className="hidden items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition-colors lg:flex"
-            title="Install Web App for 1-click downloads"
-          >
-            <DownloadCloud className="h-3.5 w-3.5 text-rose-500" />
-            <span>{t.installApp}</span>
-          </button>
-
           {/* Language Selector Dropdown */}
           <div className="relative" ref={langMenuRef}>
             <button
@@ -242,49 +231,26 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+          <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            Other downloaders
+          </p>
           <div className="grid grid-cols-2 gap-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTool === item.type;
+            {platformLinks.map((link) => {
+              const Icon = link.icon;
               return (
-                <button
-                  key={item.type}
-                  onClick={() => {
-                    onSelectTool(item.type);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold ${
-                    isActive
-                      ? 'bg-rose-50 text-rose-700'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  }`}
+                <a
+                  key={link.id}
+                  href={link.href}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold ${link.mobileClass}`}
                 >
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-rose-700' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </button>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  <span>{link.label}</span>
+                </a>
               );
             })}
           </div>
 
-          <a
-            href="/bluesky-downloader"
-            className="mt-2 flex items-center gap-2 rounded-lg bg-sky-50 px-3 py-2.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
-          >
-            <CloudSun className="h-4 w-4 text-sky-600" />
-            <span>Bluesky downloader</span>
-          </a>
-
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <button
-              onClick={() => {
-                onOpenPwaPrompt();
-                setMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-1.5 text-xs font-semibold text-rose-700"
-            >
-              <DownloadCloud className="h-4 w-4" />
-              <span>{t.installApp}</span>
-            </button>
+          <div className="mt-3 flex items-center justify-end border-t border-slate-100 pt-3">
             <button
               onClick={() => {
                 onOpenAdmin();

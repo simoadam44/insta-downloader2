@@ -13,6 +13,11 @@ import {
   HelpCircle,
   ListChecks,
   CloudSun,
+  Linkedin,
+  Pin,
+  Gamepad2,
+  Sparkles,
+  MonitorPlay,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -31,6 +36,11 @@ const infoLinks = [
   { href: '/about', label: 'About Us', icon: Info },
   { href: '/how-to-use', label: 'How to Use', icon: ListChecks },
   { href: '/bluesky-downloader', label: 'Bluesky Downloader', icon: CloudSun },
+  { href: '/linkedin-downloader', label: 'LinkedIn Video Downloader', icon: Linkedin },
+  { href: '/pinterest-downloader', label: 'Pinterest Video Downloader', icon: Pin },
+  { href: '/kick-downloader', label: 'Kick Video Downloader', icon: Gamepad2 },
+  { href: '/lemon8-downloader', label: 'Lemon8 Video Downloader', icon: Sparkles },
+  { href: '/loom-downloader', label: 'Loom Video Downloader', icon: MonitorPlay },
   { href: '/faq', label: 'FAQ', icon: HelpCircle },
   { href: '/contact', label: 'Contact Us', icon: Mail },
   { href: '/blog', label: 'Guides & Blog', icon: BookOpen },

@@ -21,6 +21,10 @@
 // This module is dependency-free and uses only `fetch`, so the same code runs
 // on Workers (no Node builtins) and on Node 24.
 
+// Sizes, counts and dates are shared with the LinkedIn extractor.
+import { formatBytes, formatCount, formatDate } from './mediaFormat';
+export { formatBytes, formatCount };
+
 export const BSKY_APPVIEW = 'https://public.api.bsky.app';
 export const BSKY_PLC_DIRECTORY = 'https://plc.directory';
 /** Fallback PDS used only when a DID document cannot be resolved. */
@@ -152,35 +156,6 @@ function str(value: unknown, max: number): string {
 
 function num(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
-}
-
-export function formatBytes(bytes: number | null): string {
-  if (bytes === null || bytes <= 0) return '';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  const rounded = unit === 0 ? String(Math.round(value)) : value.toFixed(value >= 100 ? 0 : 1);
-  return `${rounded} ${units[unit]}`;
-}
-
-export function formatCount(value: unknown): string {
-  const n = num(value);
-  if (n === null) return '';
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}K`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
-
-function formatDate(iso: unknown): string {
-  const value = str(iso, 40);
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function extensionFor(mime: string, fallback: 'mp4' | 'jpg'): 'mp4' | 'jpg' | 'png' | 'webp' {

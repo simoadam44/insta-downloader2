@@ -24,6 +24,11 @@ export const INFO_PAGE_IDS = [
   'terms',
   'disclaimer',
   'bluesky-downloader',
+  'linkedin-downloader',
+  'pinterest-downloader',
+  'kick-downloader',
+  'lemon8-downloader',
+  'loom-downloader',
 ] as const;
 
 export type InfoPageId = (typeof INFO_PAGE_IDS)[number];
@@ -645,7 +650,7 @@ const PRIVACY: InfoPage = {
   h1: 'Privacy Policy',
   updated: '2026-11-15',
   intro: [
-    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram or Bluesky downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
+    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram, Bluesky, LinkedIn, Pinterest or Kick downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
     'In short: you do not need an account, we do not keep a history of the links you submit, and we do not sell personal information. Our hosting provider processes standard request data to deliver the site, and Google Analytics 4 measures aggregate usage. Those two facts are explained in detail below.',
   ],
   sections: [
@@ -668,6 +673,9 @@ const PRIVACY: InfoPage = {
           items: [
             'Instagram links you paste into the downloader. These are needed to resolve the media you asked for.',
             'Bluesky post links you paste into the Bluesky downloader. These are needed to read the post and locate its attached files.',
+            'LinkedIn post links you paste into the LinkedIn downloader. These are needed to read the post and locate its attached video or images.',
+            'Pinterest pin links you paste into the Pinterest downloader. These are needed to read the pin and locate its attached video or image.',
+            'Kick clip and VOD links you paste into the Kick downloader. These are needed to look the clip or stream up through Kick\'s public API and, for a clip, to stream its segments back to you.',
             'Messages you send to our contact address, including your email address, name if you include it, and the content of the message.',
             'Nothing else is required. There is no registration form, no payment flow, and no newsletter.',
           ],
@@ -685,6 +693,18 @@ const PRIVACY: InfoPage = {
         {
           type: 'p',
           text: 'A Bluesky link is sent to /api/bluesky. That endpoint asks public.api.bsky.app for the post, resolves the author\'s data server through the public PLC directory, and requests the attached file from that server. No Bluesky password, app password or access token is sent, and the link is not stored in a database.',
+        },
+        {
+          type: 'p',
+          text: 'A LinkedIn link is sent to /api/linkedin. That endpoint reads the numeric post id from the link, requests the post\'s public guest view from linkedin.com, and reads the media addresses from the structured data the page returns. No LinkedIn password, cookie or access token is sent, and the link is not stored in a database.',
+        },
+        {
+          type: 'p',
+          text: 'A Pinterest link is sent to /api/pinterest. That endpoint reads the numeric pin id from the link, requests the pin\'s public page from pinterest.com, and reads the media addresses the page already contains. No Pinterest password, cookie or access token is sent, and the link is not stored in a database.',
+        },
+        {
+          type: 'p',
+          text: 'A Kick link is sent to /api/kick. That endpoint reads the clip id or VOD id from the link, asks Kick\'s public API for the clip or for that VOD\'s playback playlist, and returns the media addresses it finds. A clip download is then streamed by /api/kick-clip, which requests that clip\'s own segments from clips.kick.com and writes them to your response without storing them. No Kick account, cookie or API key is sent, and the link is not stored in a database.',
         },
         {
           type: 'p',
@@ -912,7 +932,7 @@ const TERMS: InfoPage = {
   updated: '2026-11-15',
   intro: [
     'These Terms of Use ("Terms") govern your use of www.igsavego.com and the downloaders it provides. By using the site, you agree to them. If you do not agree, please do not use the service.',
-    'IGSaveGo is a free utility for saving publicly accessible Instagram and Bluesky media. It is independent from Instagram, Meta and Bluesky, and it does not grant you rights to content you do not own.',
+    'IGSaveGo is a free utility for saving publicly accessible Instagram, Bluesky, LinkedIn, Pinterest and Kick media. It is independent from Instagram, Meta, Bluesky, LinkedIn, Pinterest and Kick, and it does not grant you rights to content you do not own.'
   ],
   sections: [
     {
@@ -921,7 +941,7 @@ const TERMS: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'IGSaveGo accepts a public Instagram or Bluesky link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
+          text: 'IGSaveGo accepts a public Instagram, Bluesky, LinkedIn, Pinterest or Kick link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
         },
         {
           type: 'p',
@@ -1384,6 +1404,1081 @@ const BLUESKY: InfoPage = {
   ],
 };
 
+const LINKEDIN: InfoPage = {
+  id: 'linkedin-downloader',
+  path: '/linkedin-downloader',
+  title: 'LinkedIn Video Downloader — Save Public Post Videos and Images',
+  description:
+    'Download the video or images from a public LinkedIn post: the MP4 LinkedIn published, or its JPG images. Free, no login, no app and no watermark.',
+  h1: 'LinkedIn Video Downloader',
+  updated: '2026-11-15',
+  tool: true,
+  keywords: [
+    'linkedin video downloader',
+    'download linkedin video',
+    'linkedin video download',
+    'linkedin image downloader',
+    'save linkedin post video',
+    'linkedin mp4 download',
+    'download linkedin post images',
+    'linkedin media downloader',
+    'linkedin post downloader',
+    'download video from linkedin post',
+  ],
+  intro: [
+    'This page saves the video or images attached to a public LinkedIn post. Paste the post link, the tool reads the post\'s public guest view, and it offers the files LinkedIn published for playback.',
+    'It works the same way as the other downloaders on this site: one field, no account sign-in, no browser extension and nothing to install. LinkedIn is a separate network with its own rules, so the tool and its limits are described separately here.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this LinkedIn downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every LinkedIn post has a permanent update identity. A link such as https://www.linkedin.com/posts/name_slug-activity-1234567890123456789-abcd contains that identity, and LinkedIn also serves the same post at /feed/update/urn:li:activity:1234567890123456789/ without requiring a session.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Copy the link to a public post from its menu ("Copy link to post") or from the address bar on a computer.',
+            'Paste it into the field above and press Get media.',
+            'The page sends the numeric post id to the IGSaveGo LinkedIn endpoint, which reads the post and returns the media it carries.',
+            'The result card appears with the author, the post text and a download button for the video or each image.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'The tool rebuilds the LinkedIn address from the numeric post id, so the link you paste can never point this server at a host of your choosing. No LinkedIn password, cookie or API key is requested at any point.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Video posts: the MP4 that LinkedIn generated for playback is offered as a download.',
+            'Image posts: the image the post publishes is listed as its own file with a download button. LinkedIn\'s logged-out view does not always render every frame of a multi-image carousel, so the card shows the image or images that view actually contains and never invents the rest.',
+            'Posts shared as a link to an article: the article preview image is part of the page markup, and the tool will offer it only if it is the post\'s own attached image; the article itself is not downloaded.',
+            'Posts with a video plus text: one result, one download button, with the post text shown as the caption.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Text-only posts, polls, document (PDF carousel) posts and job or event listings carry no video or image attachment, so they return a plain message instead of an invented result.',
+        },
+      ],
+    },
+    {
+      id: 'quality',
+      heading: 'Original files, not screen recordings',
+      blocks: [
+        {
+          type: 'p',
+          text: 'LinkedIn\'s player streams video from its own CDN. The post page also declares that video in structured data (schema.org VideoObject), including the CDN address of the file LinkedIn produced for playback. The downloader reads that address and hands the file over as it is: nothing is re-encoded, re-compressed or recorded from the screen.',
+        },
+        {
+          type: 'table',
+          head: ['Media', 'What you get', 'What the result card shows'],
+          rows: [
+            ['Video', 'The MP4 LinkedIn published', 'File size and aspect ratio read from the post'],
+            ['Image', 'The image file LinkedIn published, commonly JPEG', 'Format and the size reported by the CDN'],
+            ['Quality choices', 'None are invented: one published file per attachment', 'No 720p or 1080p labels that LinkedIn does not provide'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Because the download is the published file, its size can be larger than the preview. What the card shows is read from the post at the moment you request it, so it reflects the file that exists now rather than a fixed template.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Content behind the login wall: private posts, member-only posts and anything that requires a signed-in session is out of reach, and the page says so instead of promising a download.',
+            'LinkedIn Learning courses and their video lessons are not post links and are not supported.',
+            'Profile, company, school, jobs, feed, newsletter and search URLs are not posts and are rejected.',
+            'Articles, newsletters and PDF document carousels are not converted into a video or image file.',
+            'There is no bulk download, no whole-profile export and no archive of past posts.',
+            'The tool does not edit, watermark, transcode or merge files. It hands over what the author published.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'LinkedIn also limits automated access, and it sometimes serves a shorter version of a post page. The extractor asks again when that happens and keeps the richest response, but it never fabricates the media it could not read.',
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and requests',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No LinkedIn account is linked, no cookie is set for LinkedIn, and the file is streamed to your browser rather than stored on the server. The endpoint accepts up to 30 requests per minute from one IP address to keep it usable.',
+        },
+        {
+          type: 'p',
+          text: 'LinkedIn delivers its media from licdn.com, which is why this site\'s media proxy is allowed to forward files from that host and nothing else. When a file cannot be proxied, the result card links straight to the LinkedIn CDN and the download opens on that host; the card says so when it happens.',
+        },
+      ],
+    },
+    {
+      id: 'responsible-use',
+      heading: 'Copyright and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'A post being public does not make its content free to reuse. The video or image still belongs to the person or company that published it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the author allows, ask permission when you need more, and credit the creator when you share a link.',
+        },
+        {
+          type: 'p',
+          text: 'Do not use this tool to collect information about people, to bypass privacy settings or access controls, or to build a redistributed library of other people\'s work.',
+        },
+        {
+          type: 'p',
+          text: 'IGSaveGo is independent and is not affiliated with LinkedIn Corporation, Microsoft or any of their subsidiaries. "LinkedIn" and the LinkedIn logo are trademarks of their owners and are used here only to describe the platform whose public post links this tool reads.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this LinkedIn video downloader free?',
+      answer:
+        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for LinkedIn downloads on this page.',
+    },
+    {
+      question: 'Do I need a LinkedIn account to download a post?',
+      answer:
+        'No. You only need the link to a public post. The page reads the post\'s guest view, so you can be logged out of LinkedIn in every browser tab.',
+    },
+    {
+      question: 'Which LinkedIn links are supported?',
+      answer:
+        'Post links that contain the post\'s update id, for example https://www.linkedin.com/posts/name_slug-activity-1234567890123456789-abcd, https://www.linkedin.com/feed/update/urn:li:activity:1234567890123456789/ and the mobile m.linkedin.com equivalent. Profile, company, jobs, feed and Learning URLs are not supported.',
+    },
+    {
+      question: 'How do I download a LinkedIn video?',
+      answer:
+        'Open the post, choose "Copy link to post" from its menu, paste the link into the field above and press Get media. The result card then offers the MP4 file with one button.',
+    },
+    {
+      question: 'Can I download images from a LinkedIn post?',
+      answer:
+        'Yes, for the images the public post view publishes. Each file it renders gets its own download button, and the card reports the real format and size the CDN returned. On a multi-image carousel LinkedIn\'s logged-out page can show only the first image; the tool lists what that page contains rather than guessing at hidden frames.',
+    },
+    {
+      question: 'What quality and format do I get?',
+      answer:
+        'You get the file LinkedIn published for the post: an MP4 for video and the original image file, commonly JPEG, for a photo post. Nothing is transcoded or watermarked by this site.',
+    },
+    {
+      question: 'Why is there no 1080p or 720p choice?',
+      answer:
+        'Because a post exposes one published video file rather than a menu of downloadable renditions. Offering a list of resolutions would be misleading, so the card shows the file that exists and its measured size.',
+    },
+    {
+      question: 'Why does my post say it has nothing to download?',
+      answer:
+        'The post is probably text-only, a poll, a document carousel or a link card. Those carry no video or image attachment, so there is no file to hand over. Open a post that contains the media itself and paste that link.',
+    },
+    {
+      question: 'Can I download from a private or member-only LinkedIn post?',
+      answer:
+        'No. The tool reads the public guest view, so it cannot see content that requires a signed-in session, a connection request or a paid membership. It also cannot read deleted posts.',
+    },
+    {
+      question: 'Does it work with LinkedIn Learning videos?',
+      answer:
+        'No. Learning lessons are part of a paid subscription area and are not public posts. They are out of scope and the tool will not return them.',
+    },
+    {
+      question: 'Why did my LinkedIn download fail with a rate-limit message?',
+      answer:
+        'LinkedIn limits automated access from servers. When that happens the page explains it in the error message; waiting a few minutes normally clears it. The same message appears if this site\'s own limit of 30 requests per minute per IP address is reached.',
+    },
+    {
+      question: 'Does the tool store my links or the downloaded files?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded posts. Standard request logs and rate-limit counters are covered by the privacy policy.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s LinkedIn post?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the author\'s wishes, and do not present someone else\'s work as your own.',
+    },
+    {
+      question: 'Does this work on a phone?',
+      answer:
+        'Yes. The page is a normal web page: open it in Safari on iPhone or Chrome on Android, paste the post link and use the download button. The file is saved through your browser\'s download flow.',
+    },
+  ],
+  related: [
+    ...relatedFor('linkedin-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Bluesky Video & Image Downloader', href: '/bluesky-downloader' },
+  ],
+};
+
+const PINTEREST: InfoPage = {
+  id: 'pinterest-downloader',
+  path: '/pinterest-downloader',
+  title: 'Pinterest Video Downloader — Save Pin Videos and Images',
+  description:
+    'Download the video or image from a public Pinterest pin as the original MP4 or JPG file. Free, no login, no app and no watermark.',
+  h1: 'Pinterest Video Downloader',
+  updated: '2026-11-15',
+  tool: true,
+  keywords: [
+    'pinterest video downloader',
+    'download pinterest video',
+    'pinterest video download',
+    'pinterest image downloader',
+    'save pinterest video',
+    'pinterest mp4 download',
+    'pinterest pin downloader',
+    'download videos from pinterest',
+    'pinterest video saver',
+    'pinterest gif download',
+  ],
+  intro: [
+    'This page saves the video or image attached to a public Pinterest pin. Paste the pin link, the tool reads the pin\'s public page, and it offers the file Pinterest publishes for that pin.',
+    'It works the same way as the other downloaders on this site: one field, no account sign-in, no browser extension and nothing to install. Pinterest is a separate network with its own rules, so the tool and its limits are described separately here.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this Pinterest downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every pin has a numeric id, and the link you copy contains it, for example https://www.pinterest.com/pin/664281013778109217/. Pinterest also serves that pin as a normal web page without requiring a session.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Open the pin on Pinterest and copy its link (or use the share menu on the app).',
+            'Paste the link into the field above and press Get media.',
+            'The page sends the numeric pin id to the IGSaveGo Pinterest endpoint, which reads the pin and returns the media it carries.',
+            'The result card appears with the pinner, the pin title, and a download button for the video or the image.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'The tool rebuilds the Pinterest address from the numeric pin id, so the link you paste can never point this server at a host of your choosing. No Pinterest password, cookie or API key is requested at any point.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Video pins: the progressive MP4 that Pinterest publishes for playback is offered as a download.',
+            'Image pins: the pin\'s own image is offered at its original size, not the small grid thumbnail.',
+            'Animated pins and GIF-style pins: Pinterest stores and serves these as MP4 files, so they download as MP4.',
+            'Video pins also list their cover image, which is useful when only the still frame is wanted.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Pins that only contain a link to another website, pins whose media belongs to a different pin, and pins that Pinterest renders without any media are reported as errors instead of returning an invented result.',
+        },
+      ],
+    },
+    {
+      id: 'quality',
+      heading: 'Original files, not screen recordings',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Pinterest\'s player can use an adaptive playlist, which is not a single file you can save. The pin page also lists a progressive MP4, and that is what this tool hands over: nothing is re-encoded, re-compressed or recorded from the screen.',
+        },
+        {
+          type: 'table',
+          head: ['Media', 'What you get', 'What the result card shows'],
+          rows: [
+            ['Video', 'The MP4 Pinterest publishes for the pin', 'File size and aspect ratio read from the pin'],
+            ['Image', 'The original image on Pinterest\'s CDN', 'Format and the size reported by the CDN'],
+            ['Quality choices', 'None are invented: one file per media type', 'No 720p or 1080p labels that the pin does not provide'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Because the download is the published file, its size can be larger than the preview. What the card shows is read from the pin at the moment you request it, so it reflects the file that exists now rather than a fixed template.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Secret pins and pins on secret boards, which require a session to view.',
+            'Deleted pins, and pins whose author or board has been removed by Pinterest.',
+            'Profile, board, search, ideas and shopping pages: those are not pins and are rejected.',
+            'Pins that only link out to another website, which carry no media of their own.',
+            'Bulk downloading of a whole board or profile, which this page does not offer.',
+            'The tool does not edit, watermark, transcode or merge files. It hands over what the author published.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Pinterest also limits automated access, and it does not always render a video file even when a pin clearly has one. In that case the page says so and offers the cover image instead of claiming a video it could not read.',
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and requests',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No Pinterest account is linked, no cookie is set for Pinterest, and the file is streamed to your browser rather than stored on the server. The endpoint accepts up to 30 requests per minute from one IP address to keep it usable.',
+        },
+        {
+          type: 'p',
+          text: 'Pinterest delivers its media from pinimg.com, which is why this site\'s media proxy is allowed to forward files from that host and nothing else. When a file cannot be proxied, the result card links straight to the Pinterest CDN and the download opens on that host; the card says so when it happens.',
+        },
+      ],
+    },
+    {
+      id: 'responsible-use',
+      heading: 'Copyright and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'A pin being public does not make its content free to reuse. The video or image still belongs to the person who created it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the author allows, ask permission when you need more, and credit the creator when you share a link.',
+        },
+        {
+          type: 'p',
+          text: 'Pinterest pins often point at work that was published elsewhere first. If the pin credits another creator, that creator is the rights holder, not the pinner.',
+        },
+        {
+          type: 'p',
+          text: 'IGSaveGo is independent and is not affiliated with Pinterest, Inc. "Pinterest" and the Pinterest logo are trademarks of their owner and are used here only to describe the platform whose public pin links this tool reads.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this Pinterest video downloader free?',
+      answer:
+        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for Pinterest downloads on this page.',
+    },
+    {
+      question: 'Do I need a Pinterest account to download a pin?',
+      answer:
+        'No. You only need the link to a public pin. The page reads the pin\'s public view, so you can be logged out of Pinterest in every browser tab.',
+    },
+    {
+      question: 'Which Pinterest links are supported?',
+      answer:
+        'Pin links that contain the numeric pin id, for example https://www.pinterest.com/pin/664281013778109217/, links with a slug before the id, country domains such as de.pinterest.com, pin.it short links and a bare numeric id. Profile, board and search links are not supported.',
+    },
+    {
+      question: 'How do I download a Pinterest video?',
+      answer:
+        'Open the pin, copy its link, paste it into the field above and press Get media. The result card then offers the MP4 file with one button, and the cover image as a second option.',
+    },
+    {
+      question: 'Can I download images from Pinterest?',
+      answer:
+        'Yes. For an image pin the tool offers that pin\'s image at its original size rather than the small thumbnail used in grids, and the card reports the real format and size the CDN returned.',
+    },
+    {
+      question: 'Can I download GIFs or animated pins?',
+      answer:
+        'Pinterest stores animated pins as MP4 files, so they download through the video path and arrive as MP4. The page does not convert them to a GIF file.',
+    },
+    {
+      question: 'What quality and format do I get?',
+      answer:
+        'You get the file Pinterest publishes for the pin: an MP4 for video and the original image for a photo pin. Nothing is transcoded or watermarked by this site.',
+    },
+    {
+      question: 'Why is there no 1080p or 720p choice?',
+      answer:
+        'Because a pin exposes one published video file rather than a menu of downloadable renditions. Offering a list of resolutions would be misleading, so the card shows the file that exists and its measured size.',
+    },
+    {
+      question: 'Why does a video pin sometimes return only an image?',
+      answer:
+        'Pinterest does not always render the video file in the pin page. When that happens the tool says so and offers the cover image, which is the only media Pinterest exposed for that request. Trying again later sometimes returns the video.',
+    },
+    {
+      question: 'Can I download from a secret pin or a secret board?',
+      answer:
+        'No. Secret content requires a signed-in session, and this tool only reads public pin pages. It also cannot read deleted pins or boards removed by Pinterest.',
+    },
+    {
+      question: 'Does the tool store my links or the downloaded files?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded pins. Standard request logs and rate-limit counters are covered by the privacy policy.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s Pinterest video?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the creator\'s wishes, and do not present someone else\'s work as your own.',
+    },
+    {
+      question: 'Does this work on a phone?',
+      answer:
+        'Yes. The page is a normal web page: open it in Safari on iPhone or Chrome on Android, paste the pin link and use the download button. The file is saved through your browser\'s download flow.',
+    },
+    {
+      question: 'Is IGSaveGo affiliated with Pinterest?',
+      answer:
+        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by Pinterest, Inc. Pinterest is named only to describe the platform whose public pin links this tool reads.',
+    },
+  ],
+  related: [
+    ...relatedFor('pinterest-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'LinkedIn Video Downloader', href: '/linkedin-downloader' },
+  ],
+};
+
+const KICK: InfoPage = {
+  id: 'kick-downloader',
+  path: '/kick-downloader',
+  title: 'Kick Video Downloader — Save Kick Clips and VODs',
+  description:
+    'Download a public Kick clip as one file, grab its thumbnail, and get the real quality playlists for any Kick VOD. Free, no login, no watermark.',
+  h1: 'Kick Video Downloader',
+  updated: '2026-11-15',
+  tool: true,
+  keywords: [
+    'kick video downloader',
+    'kick clip downloader',
+    'kick vod downloader',
+    'download kick clip',
+    'download kick vod',
+    'kick clip download',
+    'save kick clip',
+    'kick.com video downloader',
+    'kick vod download',
+    'kick clip saver',
+  ],
+  intro: [
+    'This page saves a public Kick clip, its thumbnail, and resolves the quality playlists of a public Kick VOD. Paste the link, the tool reads Kick\'s public clip and channel APIs, and it returns what Kick actually publishes for that link.',
+    'Kick is a live streaming platform, so its media works differently from a photo app: a clip is a short HLS stream, and a VOD is an hours-long HLS stream. This page is honest about both cases, and the sections below say exactly what you get.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this Kick downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every Kick clip has an id that starts with clip_, and every VOD has a UUID that appears in its link. Both are visible in the address bar, for example https://kick.com/<channel>?clip=clip_01H811MXG4FBR62FXPE1AXABDH or https://kick.com/<channel>/videos/371f0495-9aaa-4e7a-b88e-22b50c6194b0.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Open the clip or the VOD on kick.com and copy its link.',
+            'Paste the link into the field above and press Get media.',
+            'The page sends the link to the IGSaveGo Kick endpoint, which reads Kick\'s public clip or channel API.',
+            'For a clip you get a download button and a thumbnail; for a VOD you get its quality playlists and a ready yt-dlp command.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'The clip id or VOD id is validated on the server before any request is made, so the link you paste can never point this server at a host of your choosing. No Kick account, cookie or API key is requested at any point.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Kick clips: the clip is rebuilt from Kick\'s own stream segments into one MPEG-TS file, so the video you get is the clip itself, not a screen recording.',
+            'Clip thumbnails: the PNG cover Kick publishes for the clip.',
+            'Kick VODs: the playlist link for each quality Kick serves (1080p60, 720p60, 480p, 360p and 160p when available), plus the exact yt-dlp command that saves it as one MP4.',
+            'VOD thumbnails: the artwork Kick publishes for the stream, at the largest size it lists.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'A clip is downloadable here in the browser because it is short. A VOD is not: a nine-hour stream is several gigabytes split into thousands of segments, and joining it needs ffmpeg on a real server, which is not what this site runs.',
+        },
+      ],
+    },
+    {
+      id: 'clip-format',
+      heading: 'Clips are delivered as MPEG-TS, and why',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Kick publishes clips only as an HLS stream whose files are MPEG-TS segments. There is no progressive MP4 on Kick\'s clip storage to hand over, and this site does not re-encode video. The download therefore joins the clip\'s original segments in order into one .ts file.',
+        },
+        {
+          type: 'table',
+          head: ['What you need', 'What to do'],
+          rows: [
+            ['Watch or keep the clip', 'Open the .ts file in VLC, MPV, PotPlayer or KMPlayer — they play it directly.'],
+            ['An MP4 for editing or upload', 'Remux without quality loss: ffmpeg -i clip.ts -c copy clip.mp4'],
+            ['Play it in a browser or phone gallery', 'Not supported by the container; remux it to MP4 first, as above.'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Nothing is transcoded, cropped or watermarked by this site: the bytes are Kick\'s own segments, joined in the order Kick listed them.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Private, deleted and subscriber-only clips or VODs, which need a signed-in session.',
+            'Expired VODs: Kick removes older streams, and a VOD whose playback Kick no longer serves cannot be read.',
+            'Live channel links: a live broadcast has no end, so there is no single file to save.',
+            'Category, search, settings and following pages, which are not clips or VODs.',
+            'Saving a full VOD as one MP4 in the browser: use the playlist or the yt-dlp command the page gives you.',
+            'Bulk downloading of a whole channel, which this page does not offer.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Kick also limits automated access. When it refuses a request, the page says so and suggests trying again later rather than showing an empty result.',
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and requests',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No Kick account is linked, no cookie is set for Kick, and files are streamed to your browser rather than stored on the server. The endpoint accepts up to 30 requests per minute from one IP address, and the clip download endpoint 20.',
+        },
+        {
+          type: 'p',
+          text: 'Kick delivers clips from clips.kick.com and artwork from images.kick.com, which is why this site\'s media proxy is allowed to forward files from those hosts and nothing else.',
+        },
+      ],
+    },
+    {
+      id: 'responsible-use',
+      heading: 'Copyright and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'A clip being public does not make it free to reuse. The video still belongs to the streamer and to anyone else featured in it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the creator allows, ask permission when you need more, and credit the channel when you share it.',
+        },
+        {
+          type: 'p',
+          text: 'IGSaveGo is independent and is not affiliated with Kick. "Kick" is a trademark of its owner and is used here only to describe the platform whose public clip and VOD links this tool reads.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this Kick video downloader free?',
+      answer:
+        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for Kick downloads on this page.',
+    },
+    {
+      question: 'Do I need a Kick account to download a clip?',
+      answer:
+        'No. You only need the link to a public clip. The page reads Kick\'s public clip API, so you can be logged out of Kick in every browser tab.',
+    },
+    {
+      question: 'Which Kick links are supported?',
+      answer:
+        'Clip links such as https://kick.com/<channel>?clip=clip_…, the /<channel>/clips/clip_… form, a bare clip id, and VOD links such as https://kick.com/<channel>/videos/<uuid>. Live channel links, categories, search and settings pages are reported as unsupported.',
+    },
+    {
+      question: 'How do I download a Kick clip?',
+      answer:
+        'Open the clip on Kick, copy the link, paste it above and press Get media. The result panel shows the clip with one download button, the file size measured from Kick\'s playlist, and the thumbnail as a second download.',
+    },
+    {
+      question: 'Why is the clip a .ts file and not an MP4?',
+      answer:
+        'Because Kick stores clips only as HLS MPEG-TS segments; there is no MP4 file to fetch, and this site does not re-encode. VLC, MPV, PotPlayer and ffmpeg open the .ts file directly, and remuxing it to MP4 without quality loss takes one command.',
+    },
+    {
+      question: 'How do I turn the clip into an MP4?',
+      answer:
+        'Run: ffmpeg -i clip.ts -c copy clip.mp4. The -c copy flag rewraps the stream without re-encoding, so it is fast and the quality does not change. VLC can also do it through Convert / Save.',
+    },
+    {
+      question: 'Can I download a Kick VOD as one file here?',
+      answer:
+        'Not directly, and the page does not pretend otherwise. A VOD is an hours-long HLS stream of several gigabytes split into thousands of segments, which a browser download or an edge function cannot join into one MP4. You get its exact quality playlists and a ready yt-dlp command instead.',
+    },
+    {
+      question: 'How do I use the VOD playlist the page gives me?',
+      answer:
+        'Copy a quality playlist and open it in VLC or MPV through Open Network Stream, or run the yt-dlp command shown in the card: it saves the highest quality video and audio as one MP4 file on your computer.',
+    },
+    {
+      question: 'Which VOD qualities are available?',
+      answer:
+        'Whatever Kick publishes for that stream: 1080p60, 720p60, 480p, 360p and 160p normally, with their resolutions and bitrates listed next to each playlist. The page reads them from Kick\'s master playlist each time, so expired or missing qualities are not offered.',
+    },
+    {
+      question: 'Why does a channel link say there is nothing to download?',
+      answer:
+        'A channel page can be showing a live broadcast, and a live stream has no end and no single file. When the broadcast finishes, Kick publishes it as a VOD that this page can read.',
+    },
+    {
+      question: 'Can I download a subscriber-only or deleted clip?',
+      answer:
+        'No. Those need a signed-in session with the right subscription, and this tool only reads public data. Deleted clips, removed channels and expired VODs are reported as errors instead of guessed at.',
+    },
+    {
+      question: 'Does the tool store my links or the downloaded files?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded clips. Standard request logs and rate-limit counters are covered by the privacy policy.',
+    },
+    {
+      question: 'Does this work on a phone?',
+      answer:
+        'The page works in Safari on iPhone and Chrome on Android, and the clip download saves through your browser. Playing the resulting .ts file needs a video app that opens MPEG-TS, so on a phone it is often easier to remux it to MP4 on a computer first.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s Kick clip?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the streamer\'s wishes, and do not present someone else\'s work as your own.',
+    },
+    {
+      question: 'Is IGSaveGo affiliated with Kick?',
+      answer:
+        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by Kick. Kick is named only to describe the platform whose public clip and VOD links this tool reads.',
+    },
+  ],
+  related: [
+    ...relatedFor('kick-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Pinterest Video Downloader', href: '/pinterest-downloader' },
+  ],
+};
+
+const LEMON8: InfoPage = {
+  id: 'lemon8-downloader',
+  path: '/lemon8-downloader',
+  title: 'Lemon8 Video Downloader — Save Lemon8 Videos and Photos',
+  description:
+    'Download a public Lemon8 video as MP4, or save every photo in a Lemon8 gallery. Free, no login, no watermark: paste the lemon8-app.com post link.',
+  h1: 'Lemon8 Video Downloader',
+  updated: '2026-11-16',
+  tool: true,
+  keywords: [
+    'lemon8 video downloader',
+    'lemon8 downloader',
+    'lemon8 downloader video',
+    'download lemon8 video',
+    'lemon8 video download',
+    'save lemon8 video',
+    'lemon8 photo downloader',
+    'lemon8 image downloader',
+    'lemon8 gallery downloader',
+    'lemon8-app.com downloader',
+    'lemon8 video saver',
+    'lemon8 no watermark',
+  ],
+  intro: [
+    'This page saves a public Lemon8 post: a video post comes back as the MP4 Lemon8 itself serves, and a photo post comes back as its full gallery, image by image. Paste the lemon8-app.com link, the tool reads the post\'s public page, and it hands over the media addresses that page publishes.',
+    'Lemon8 is a ByteDance app, so its public posts live on ByteDance\'s CDNs (tiktokcdn.com and lemon8cdn.com) with signed links that expire. Nothing is re-encoded, cropped or watermarked here: the file you get is the one the post already serves.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this Lemon8 downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every Lemon8 post link contains the post id, for example https://www.lemon8-app.com/@name/7541792845775094302?region=us. That id is validated on the server before anything is requested, and the post page is then read once.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Open the post in Lemon8 (or on www.lemon8-app.com) and copy its link.',
+            'Paste the link into the field above and press Get media.',
+            'The page sends the link to the IGSaveGo Lemon8 endpoint, which fetches the public post page.',
+            'Lemon8 renders each public post with its own data embedded in the page, including the MP4 address or every gallery image. The tool reads that data and returns it — nothing else on the page is used.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'No Lemon8 account, cookie, password or API key is requested at any point, and the link is not stored in a database. Media is streamed through this site\'s own proxy so your browser saves the file instead of opening a new tab.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Lemon8 videos: the progressive MP4 Lemon8 serves for the post, at its native resolution (commonly 540×960 or 720×1280 for vertical posts).',
+            'Lemon8 photo posts: every image in the gallery, each with its own download button and the post\'s original size.',
+            'The post cover: the image Lemon8 publishes for the post, useful as a thumbnail.',
+            'Post details: the author, title, publish date and the public like, save, comment and view counts Lemon8 lists.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'A Lemon8 post is one of two shapes, and this page handles both: a video post carries a single MP4, while a photo post carries an ordered list of images. The result card switches automatically and numbers every image so the gallery order is kept.',
+        },
+      ],
+    },
+    {
+      id: 'video-or-gallery',
+      heading: 'Videos and photo galleries',
+      blocks: [
+        {
+          type: 'table',
+          head: ['Post type', 'What the page returns'],
+          rows: [
+            ['Video post', 'One MP4 download button with its real resolution and duration, plus the cover image.'],
+            ['Photo post with one image', 'One image download button in the format Lemon8 serves (usually WebP or JPEG).'],
+            ['Photo post with many images', 'A numbered gallery in the result card; each slide has its own download button.'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Images are usually served as WebP because that is what Lemon8 stores; phones and computers open it natively. If an app refuses WebP, open the file in a browser and save it as PNG or JPEG from there.',
+        },
+      ],
+    },
+    {
+      id: 'yt-dlp',
+      heading: 'About yt-dlp and other open-source tools',
+      blocks: [
+        {
+          type: 'p',
+          text: 'yt-dlp, the open-source command-line downloader, keeps a list of supported sites and Lemon8 is not on it: there is no Lemon8 extractor in the project, so a yt-dlp command cannot fetch a lemon8-app.com link today. That is why this page does the extraction itself, using the same public page data those extractors read.',
+        },
+        {
+          type: 'p',
+          text: 'The approach here is deliberately small and auditable: one request to the public post page, one embedded JSON payload, no login and no private API. If a post is not public, no tool on this page can open it — and none pretends to.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Private, deleted or region-locked posts, which need the app and a signed-in session.',
+            'Profile links: a Lemon8 profile has many posts, so open the post you want and paste its own link.',
+            'Whole-profile or bulk downloads, which this page does not offer.',
+            'Text-only posts that carry no image or video, because there is no media to save.',
+            'Long-term storage of the links: the CDN addresses Lemon8 signs expire, so download the files you want while the result card is open.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The post link is used to answer your request and is not saved in a library of downloads. Standard request logs and the rate-limit counter apply, as described in the privacy policy. Nothing about your Lemon8 account is requested, because none is needed.',
+        },
+        {
+          type: 'p',
+          text: 'Public visibility is not the same as permission to republish. Keep downloads for personal use, credit the creator when you share, and do not present someone else\'s photos or videos as your own.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this Lemon8 downloader free?',
+      answer:
+        'Yes. The page is free to use, needs no account and asks for no payment, extension or app install. It is supported by the same ads as the rest of the site.',
+    },
+    {
+      question: 'Do I need to log in to Lemon8?',
+      answer:
+        'No. The tool reads the public post page only. It never asks for your Lemon8 password, a cookie or an API key, and it cannot open posts that require a signed-in session.',
+    },
+    {
+      question: 'How do I download a Lemon8 video?',
+      answer:
+        'Open the video post, copy its link (it looks like https://www.lemon8-app.com/@name/7012345678901234567), paste it above and press Get media. The result card shows the MP4 with a download button; the file saves through your browser.',
+    },
+    {
+      question: 'Can I download Lemon8 photos as well as videos?',
+      answer:
+        'Yes. A photo post returns its whole gallery: the result card numbers each image and gives every one its own download button, at the size Lemon8 serves.',
+    },
+    {
+      question: 'Why does my Lemon8 link show an error?',
+      answer:
+        'The usual causes are a profile link instead of a post link, a deleted or private post, or a link copied without its post id. Open the post itself, use its share or copy-link option, and paste that address.',
+    },
+    {
+      question: 'Is the downloaded video watermarked?',
+      answer:
+        'No. The bytes come straight from Lemon8\'s CDN; this site does not re-encode, crop or add anything. If the original post has a watermark baked in by its creator, it stays — that is part of the file Lemon8 stores.',
+    },
+    {
+      question: 'What resolution do I get?',
+      answer:
+        'The resolution Lemon8 publishes for that post, shown above the download button. Vertical videos are commonly 540×960 or 720×1280, and photos keep the dimensions the post lists. Nothing is upscaled.',
+    },
+    {
+      question: 'Why are the download links temporary?',
+      answer:
+        'Lemon8 signs its CDN addresses with an expiry. The page reads fresh links each time you extract a post, which is why a link from an old tab can stop working and a new extraction fixes it.',
+    },
+    {
+      question: 'Can I use yt-dlp for Lemon8?',
+      answer:
+        'Not today: yt-dlp\'s supported-sites list has no Lemon8 extractor, so the command has nothing to run for a lemon8-app.com link. This page reads the same public post data directly instead.',
+    },
+    {
+      question: 'Does the tool store my links or downloads?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser. The service does not build a library of downloaded posts; only standard request logs and the rate-limit counter are kept, as covered by the privacy policy.',
+    },
+    {
+      question: 'Does it work on a phone?',
+      answer:
+        'Yes. The page is a normal web page, so Safari on iPhone and Chrome on Android can paste a link and save the MP4 or images through the browser\'s download flow.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s Lemon8 post?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not permission to republish, so keep private use private, credit the creator when sharing, and do not pass the work off as your own.',
+    },
+    {
+      question: 'Is IGSaveGo affiliated with Lemon8?',
+      answer:
+        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by Lemon8 or ByteDance. Lemon8 is named only to describe the platform whose public post links this tool reads.',
+    },
+  ],
+  related: [
+    ...relatedFor('lemon8-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Kick Video Downloader', href: '/kick-downloader' },
+  ],
+};
+
+const LOOM: InfoPage = {
+  id: 'loom-downloader',
+  path: '/loom-downloader',
+  title: 'Loom Video Downloader — Save a Loom Recording as MP4',
+  description:
+    'Download a public Loom recording as an MP4 in the quality Loom serves, with its thumbnail. Free, no login, no watermark: paste the loom.com link.',
+  h1: 'Loom Video Downloader',
+  updated: '2026-11-16',
+  tool: true,
+  keywords: [
+    'loom video downloader',
+    'loom downloader',
+    'download loom video',
+    'loom video download',
+    'save loom recording',
+    'loom recording downloader',
+    'loom mp4 download',
+    'loom.com video downloader',
+    'download video from loom',
+    'loom video saver',
+    'loom downloader no watermark',
+    'yt-dlp loom',
+  ],
+  intro: [
+    'This page saves a public Loom recording as one MP4. Paste the loom.com share link, the tool asks Loom\'s own public API for the recording, and it gives you the file Loom serves plus the thumbnail the recording already has.',
+    'Loom is a screen-recording service, so a recording is a single video rather than a photo gallery. Nothing is re-encoded, cropped or watermarked here: the MP4 comes from Loom\'s own CDN.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this Loom downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every Loom recording has a 32-character id in its link, for example https://www.loom.com/share/44bff3b7cd784946a61686092a353f48. That id is validated on the server before anything is requested.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Open the recording on loom.com and copy its share link.',
+            'Paste the link into the field above and press Get media.',
+            'The page calls the IGSaveGo Loom endpoint, which makes the same two read-only requests the Loom share page makes: one for the recording\'s title, owner, duration and dimensions, and one for a signed MP4 address.',
+            'The result card appears with the recording\'s real size, duration and an MP4 download button.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'No Loom account, cookie or API key is requested at any point. Downloads are streamed through this site\'s media proxy so your browser saves the file instead of opening a new tab.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'The recording video as an MP4, at the resolution and duration Loom reports for it (commonly 1280×720 or 1728×1080).',
+            'The thumbnail: the still frame Loom publishes for the recording.',
+            'Recording details: title, owner display name, creation date, duration and dimensions.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Unlike a social post, a Loom link carries no photo gallery, so this page returns one video and its thumbnail rather than a carousel.',
+        },
+      ],
+    },
+    {
+      id: 'yt-dlp',
+      heading: 'yt-dlp and other open-source tools',
+      blocks: [
+        {
+          type: 'p',
+          text: 'yt-dlp, the open-source command-line downloader, ships a Loom extractor, so yt-dlp https://www.loom.com/share/<id> saves the same recording from a terminal. This page does the same thing in the browser: it reads Loom\'s public GraphQL API for the signed MP4 that the share page itself uses.',
+        },
+        {
+          type: 'p',
+          text: 'That matters for the rare recording Loom serves only as an HLS stream: there is no single MP4 to hand over in the browser, and the page says so instead of failing silently. yt-dlp can still save that one, because it can join an HLS stream.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Password-protected recordings, which need the password entered inside Loom.',
+            'Private recordings and videos limited to a workspace, which Loom does not publish to anonymous visitors.',
+            'Deleted recordings and expired share links.',
+            'Folder links (loom.com/share/folder/…): open the recording you want and paste its own link.',
+            'Bulk downloads of a whole folder or workspace, which this page does not offer.',
+            'Long-term storage of the link: Loom signs its CDN address with an expiry, so download the file while the result card is open.',
+          ],
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link is used to answer your request and is not stored in a library of downloads. Standard request logs and the rate-limit counter apply, as described in the privacy policy. Nothing about your Loom account is requested, because none is needed.',
+        },
+        {
+          type: 'p',
+          text: 'A recording is someone\'s work, and a public link is not permission to republish. Keep downloads for personal or permitted use, credit the author when you share, and do not present their recording as your own.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this Loom video downloader free?',
+      answer:
+        'Yes. The page is free, needs no account and asks for no payment, extension or app install. It is supported by the same ads as the rest of the site.',
+    },
+    {
+      question: 'Do I need to log in to Loom?',
+      answer:
+        'No. The tool only reads public recordings through Loom\'s own public API. It never asks for a Loom password, cookie or API key, and it cannot open recordings that need a signed-in session.',
+    },
+    {
+      question: 'How do I download a Loom video?',
+      answer:
+        'Open the recording, copy its share link (https://www.loom.com/share/<32-character id>), paste it above and press Get media. The result card shows the MP4 with a download button, and the file saves through your browser.',
+    },
+    {
+      question: 'What quality do I get?',
+      answer:
+        'The quality Loom reports for that recording, shown on the card before you download — commonly 1280×720 or 1728×1080. The file is Loom\'s own transcoded MP4; this site does not upscale or re-encode anything.',
+    },
+    {
+      question: 'Is the video watermarked?',
+      answer:
+        'No. This site adds nothing to the file. If the recording itself shows a watermark or a webcam bubble, that is part of what the author recorded.',
+    },
+    {
+      question: 'Can I download a password-protected Loom video?',
+      answer:
+        'Not here. A password-protected recording only releases its media after the password is entered inside Loom, so the page reports that clearly instead of guessing. Open it in Loom, unlock it, and use Loom\'s own download option.',
+    },
+    {
+      question: 'Why does my Loom link show an error?',
+      answer:
+        'The common causes are a folder link instead of a recording link, a private or deleted recording, an expired share link, or a link copied without its 32-character id. Open the recording itself and copy its share address.',
+    },
+    {
+      question: 'Why can some recordings only be saved with yt-dlp?',
+      answer:
+        'Loom serves a few older or very large recordings only as an HLS stream. A browser cannot save that as one file, so the page says so and points to yt-dlp, the open-source downloader that can join HLS segments.',
+    },
+    {
+      question: 'Does the tool store my links or downloads?',
+      answer:
+        'The link is used to answer your request and the video is streamed to your browser. The service does not build a library of downloaded recordings; only standard request logs and the rate-limit counter are kept, as covered by the privacy policy.',
+    },
+    {
+      question: 'Does it work on a phone?',
+      answer:
+        'Yes. The page is a normal web page, so Safari on iPhone and Chrome on Android can paste the link and save the MP4 through the browser\'s download flow.',
+    },
+    {
+      question: 'Can I download the thumbnail too?',
+      answer:
+        'Yes. The card carries the still frame Loom publishes for the recording, with its own download link, alongside the video.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s Loom recording?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. A public link is not permission to republish, so keep private use private, respect the author\'s wishes, and do not pass their work off as your own.',
+    },
+    {
+      question: 'Is IGSaveGo affiliated with Loom?',
+      answer:
+        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by Loom, Inc. or Atlassian. Loom is named only to describe the platform whose public recording links this tool reads.',
+    },
+  ],
+  related: [
+    ...relatedFor('loom-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Lemon8 Video Downloader', href: '/lemon8-downloader' },
+  ],
+};
+
 export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   about: ABOUT,
   contact: CONTACT,
@@ -1393,6 +2488,11 @@ export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   terms: TERMS,
   disclaimer: DISCLAIMER,
   'bluesky-downloader': BLUESKY,
+  'linkedin-downloader': LINKEDIN,
+  'pinterest-downloader': PINTEREST,
+  'kick-downloader': KICK,
+  'lemon8-downloader': LEMON8,
+  'loom-downloader': LOOM,
 };
 
 /** Returns the page content for a pathname, or null when it is not a static page. */

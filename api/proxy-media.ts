@@ -42,7 +42,7 @@ function isAllowed(urlStr: string): boolean {
       /^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254\.|0\.)/.test(h) ||
       /^\d+\.\d+\.\d+\.\d+$/.test(h)
     ) return false;
-    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com', 'bsky.app', 'bsky.network', 'bsky.social'];
+    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com', 'bsky.app', 'bsky.network', 'bsky.social', 'licdn.com', 'pinimg.com', 'clips.kick.com', 'images.kick.com'];
     return roots.some((r) => h === r || h.endsWith('.' + r));
   } catch {
     return false;
@@ -89,7 +89,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!upstream.ok && upstream.status !== 206) {
     return res.status(upstream.status).send(`CDN fetch failed: HTTP ${upstream.status}`);
   }
-  const ct = upstream.headers.get('content-type') || (safeFilename.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+  // Kick's CDN answers `application/octet-stream`, which browsers refuse to
+  // render, so the extension decides the type for that case.
+  const declaredCt = upstream.headers.get('content-type') || '';
+  const guessedCt =
+    {
+      '.mp4': 'video/mp4',
+      '.ts': 'video/mp2t',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+      '.mp3': 'audio/mpeg',
+    }[safeFilename.slice(safeFilename.lastIndexOf('.')).toLowerCase()] || '';
+  const ct =
+    !declaredCt || declaredCt.startsWith('application/octet-stream')
+      ? guessedCt || (safeFilename.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg')
+      : declaredCt;
   // Guard: never serve an upstream error page (e.g. expired CDN signature
   // returning HTML) as if it were media — that causes black players and
   // confused downloads. Fail loudly so the UI can mint a fresh link.

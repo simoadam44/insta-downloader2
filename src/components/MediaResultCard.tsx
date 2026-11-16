@@ -31,9 +31,9 @@ interface MediaResultCardProps {
   onRefresh?: () => void;
   isRefreshing?: boolean;
   // Which service produced this result. Defaults to Instagram so existing
-  // pages keep their exact wording; 'bluesky' switches the card to the
-  // original-file labels the AT Protocol extractor can actually back up.
-  source?: 'instagram' | 'bluesky';
+  // pages keep their exact wording; 'bluesky' and 'linkedin' switch the card to
+  // the original-file labels those extractors can actually back up.
+  source?: 'instagram' | 'bluesky' | 'linkedin' | 'pinterest' | 'lemon8' | 'loom';
 }
 
 export const MediaResultCard: React.FC<MediaResultCardProps> = ({
@@ -64,15 +64,32 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
   const isArabic = currentLanguage === 'ar';
-  const isBluesky = source === 'bluesky';
+  // LinkedIn and Bluesky both hand over the file the author published, so
+  // neither may be given the invented 1080p label Instagram results carry.
+  const isOriginalFile = source !== 'instagram';
+  // Platform named by the "view original" link — every result carries the
+  // canonical URL of the post/pin it came from.
+  const sourceLabel =
+    source === 'pinterest'
+      ? 'Pinterest'
+      : source === 'linkedin'
+        ? 'LinkedIn'
+        : source === 'bluesky'
+          ? 'Bluesky'
+          : source === 'lemon8'
+            ? 'Lemon8'
+            : source === 'loom'
+              ? 'Loom'
+              : 'Instagram';
   const currentItem = media.items[activeSlideIndex] || media.items[0];
   const isCarousel = media.items.length > 1;
 
   // Instagram results either carry real qualities or (rarely) none, in which
-  // case the legacy 1080p defaults below are used. Bluesky never gets those
-  // defaults: the card is built from the fields the AT Protocol response
-  // actually contains, so nothing about resolution or size is invented.
-  const blueskyQuality: QualityOption[] = [
+  // case the legacy 1080p defaults below are used. Original-file results
+  // (Bluesky, LinkedIn) never get those defaults: the card is built from the
+  // fields the endpoint actually returned, so nothing about resolution or size
+  // is invented.
+  const originalQuality: QualityOption[] = [
     {
       id: 'original',
       label: currentItem.format === 'mp4' ? 'Original video upload' : 'Original image upload',
@@ -88,8 +105,8 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
   // Build 1080p Full HD quality
   const qualities: QualityOption[] = (currentItem.availableQualities && currentItem.availableQualities.length > 0)
     ? currentItem.availableQualities
-    : isBluesky
-    ? blueskyQuality
+    : isOriginalFile
+    ? originalQuality
     : currentItem.type === 'video'
     ? [
         {
@@ -258,7 +275,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-900/90 p-6 text-center backdrop-blur-xs">
                   <RefreshCw className={`h-8 w-8 text-rose-400 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <p className="text-xs font-semibold text-white leading-relaxed">
-                    {isBluesky
+                    {isOriginalFile
                       ? 'The preview could not load this file. Use the download button below, which requests the original file directly.'
                       : isArabic
                         ? 'انتهت صلاحية رابط المعاينة (روابط انستقرام مؤقتة). حدّث للحصول على رابط جديد فوراً.'
@@ -388,7 +405,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
               {/* AUDIO TRACK EXTRACTION — Instagram only. Bluesky results
                   point at the author's original upload, where a client-side
                   MP3 transcode would be a separate claim we do not make. */}
-              {!isBluesky && (media.audioTrack || currentItem.type === 'video') && (
+              {!isOriginalFile && (media.audioTrack || currentItem.type === 'video') && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-purple-200/80 bg-purple-50/60 p-3 text-xs">
                   <div className="flex items-center gap-2.5 truncate">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white shadow-2xs">
@@ -427,7 +444,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-black bg-rose-600 text-white shadow-xs">
                       <Sparkles className="h-3.5 w-3.5" />
-                      {isBluesky ? 'ORIGINAL FILE' : '1080p FULL HD'}
+                      {isOriginalFile ? 'ORIGINAL FILE' : '1080p FULL HD'}
                     </span>
                     <span className="text-xs font-bold text-slate-800">
                       {selectedQuality.label}
@@ -444,13 +461,13 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   <div className="flex items-center gap-1.5 truncate">
                     <Video className="h-3.5 w-3.5 text-rose-500 shrink-0" />
                     <span className="font-medium truncate">
-                      {isBluesky
+                      {isOriginalFile
                         ? [selectedQuality.resolution, selectedQuality.bitrate].filter(Boolean).join(' • ') || 'Original upload'
                         : `${selectedQuality.resolution} • ${selectedQuality.bitrate || 'Ultra HD 60FPS'}`}
                     </span>
                   </div>
                   <span className="font-semibold text-slate-500 uppercase shrink-0">
-                    {isBluesky
+                    {isOriginalFile
                       ? `${selectedQuality.format.toUpperCase()} • No re-encode`
                       : currentItem.type === 'video' ? 'MP4 • H.264' : 'JPG • Original'}
                   </span>
@@ -471,7 +488,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   <>
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     <span>
-                      {isBluesky
+                      {isOriginalFile
                         ? 'Downloading original file...'
                         : isArabic ? 'جاري التحميل بدقة 1080p...' : 'Downloading 1080p Full HD...'}
                     </span>
@@ -480,7 +497,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   <>
                     <Download className="h-5 w-5" />
                     <span>
-                      {isBluesky
+                      {isOriginalFile
                         ? `Download ${selectedQuality.format.toUpperCase()}${
                             selectedQuality.fileSize ? ` (${selectedQuality.fileSize})` : ''
                           }`
@@ -512,7 +529,7 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                 >
                   <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                   <span>
-                    {isBluesky
+                    {isOriginalFile
                       ? `Download all ${media.items.length} files`
                       : isArabic
                         ? `تحميل جميع الشرائح (${media.items.length} وسائط) بدقة 1080p`
@@ -537,10 +554,10 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
-                  title={isBluesky ? 'View on Bluesky' : 'View on Instagram'}
+                  title={`View on ${sourceLabel}`}
                 >
                   <ExternalLink className="h-3.5 w-3.5 text-slate-500" />
-                  <span className="hidden sm:inline">{isBluesky ? 'Bluesky' : 'Instagram'}</span>
+                  <span className="hidden sm:inline">{sourceLabel}</span>
                 </a>
               </div>
             </div>

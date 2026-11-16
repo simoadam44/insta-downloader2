@@ -11,6 +11,11 @@ import { FaqSection } from './components/FaqSection';
 import { Footer } from './components/Footer';
 import { InfoPage } from './components/InfoPage';
 import { BlueskyDownloader } from './components/BlueskyDownloader';
+import { LinkedInDownloader } from './components/LinkedInDownloader';
+import { PinterestDownloader } from './components/PinterestDownloader';
+import { KickDownloader } from './components/KickDownloader';
+import { Lemon8Downloader } from './components/Lemon8Downloader';
+import { LoomDownloader } from './components/LoomDownloader';
 import { DynamicSitemapModal } from './components/DynamicSitemapModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import {
@@ -643,8 +648,36 @@ export default function App() {
           <InfoPage
             page={infoPageById(infoPageId) || INFO_PAGES.about}
             contactEmail={brandingSettings.contactEmail || 'support@igsavego.com'}
-            badge={infoPageId === 'bluesky-downloader' ? 'IGSaveGo · Bluesky tool' : undefined}
-            widget={infoPageId === 'bluesky-downloader' ? <BlueskyDownloader /> : undefined}
+            badge={
+              infoPageId === 'bluesky-downloader'
+                ? 'IGSaveGo · Bluesky tool'
+                : infoPageId === 'linkedin-downloader'
+                  ? 'IGSaveGo · LinkedIn tool'
+                  : infoPageId === 'pinterest-downloader'
+                    ? 'IGSaveGo · Pinterest tool'
+                    : infoPageId === 'kick-downloader'
+                      ? 'IGSaveGo · Kick tool'
+                      : infoPageId === 'lemon8-downloader'
+                        ? 'IGSaveGo · Lemon8 tool'
+                        : infoPageId === 'loom-downloader'
+                          ? 'IGSaveGo · Loom tool'
+                          : undefined
+            }
+            widget={
+              infoPageId === 'bluesky-downloader' ? (
+                <BlueskyDownloader />
+              ) : infoPageId === 'linkedin-downloader' ? (
+                <LinkedInDownloader />
+              ) : infoPageId === 'pinterest-downloader' ? (
+                <PinterestDownloader />
+              ) : infoPageId === 'kick-downloader' ? (
+                <KickDownloader />
+              ) : infoPageId === 'lemon8-downloader' ? (
+                <Lemon8Downloader />
+              ) : infoPageId === 'loom-downloader' ? (
+                <LoomDownloader />
+              ) : undefined
+            }
           />
         ) : blogView ? (
           blogView.type === 'hub' ? (
