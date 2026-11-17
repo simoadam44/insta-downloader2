@@ -28,7 +28,6 @@ npm run dev
 | أداة Bluesky | http://localhost:3000/bluesky-downloader |
 | أداة LinkedIn | http://localhost:3000/linkedin-downloader |
 | أداة Pinterest | http://localhost:3000/pinterest-downloader |
-| أداة Kick | http://localhost:3000/kick-downloader |
 | أداة Lemon8 | http://localhost:3000/lemon8-downloader |
 | أداة Loom | http://localhost:3000/loom-downloader |
 | صفحة كلمة مفتاحية | http://localhost:3000/instagram-video-downloader |

@@ -27,7 +27,6 @@ const INFO_PAGES = [
   { path: '/bluesky-downloader', updated: '2026-11-15' },
   { path: '/linkedin-downloader', updated: '2026-11-15' },
   { path: '/pinterest-downloader', updated: '2026-11-15' },
-  { path: '/kick-downloader', updated: '2026-11-15' },
   { path: '/lemon8-downloader', updated: '2026-11-16' },
   { path: '/loom-downloader', updated: '2026-11-16' },
 ];

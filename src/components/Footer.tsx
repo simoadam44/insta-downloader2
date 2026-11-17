@@ -15,7 +15,6 @@ import {
   CloudSun,
   Linkedin,
   Pin,
-  Gamepad2,
   Sparkles,
   MonitorPlay,
 } from 'lucide-react';
@@ -38,7 +37,6 @@ const infoLinks = [
   { href: '/bluesky-downloader', label: 'Bluesky Downloader', icon: CloudSun },
   { href: '/linkedin-downloader', label: 'LinkedIn Video Downloader', icon: Linkedin },
   { href: '/pinterest-downloader', label: 'Pinterest Video Downloader', icon: Pin },
-  { href: '/kick-downloader', label: 'Kick Video Downloader', icon: Gamepad2 },
   { href: '/lemon8-downloader', label: 'Lemon8 Video Downloader', icon: Sparkles },
   { href: '/loom-downloader', label: 'Loom Video Downloader', icon: MonitorPlay },
   { href: '/faq', label: 'FAQ', icon: HelpCircle },

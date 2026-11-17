@@ -11,7 +11,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseLinkedInPostUrl, linkedInPostUrl } from '../lib/linkedinExtract';
 import { parsePinterestPinUrl, isProxyablePinterestHost } from '../lib/pinterestExtract';
-import { parseKickUrl } from '../lib/kickExtract';
 import { parseLemon8Url } from '../lib/lemon8Extract';
 import { parseLoomUrl } from '../lib/loomExtract';
 import { formatBytes, formatCount, formatDate, formatIsoDuration } from '../lib/mediaFormat';
@@ -69,25 +68,7 @@ test('3. Pinterest pins accept pin URLs and pin.it short links only', () => {
   assert.equal(isProxyablePinterestHost('evilpinimg.com'), false);
 });
 
-test('4. Kick links resolve to a clip, a VOD or a channel', () => {
-  assert.deepEqual(parseKickUrl('https://kick.com/xqc?clip=clip_01H811MXG4FBR62FXPE1AXABDH'), {
-    kind: 'clip',
-    clipId: 'clip_01H811MXG4FBR62FXPE1AXABDH',
-  });
-  assert.deepEqual(parseKickUrl('clip_01H811MXG4FBR62FXPE1AXABDH'), {
-    kind: 'clip',
-    clipId: 'clip_01H811MXG4FBR62FXPE1AXABDH',
-  });
-  assert.deepEqual(
-    parseKickUrl('https://kick.com/xqc/videos/371f0495-9aaa-4e7a-b88e-22b50c6194b0'),
-    { kind: 'vod', slug: 'xqc', videoId: '371f0495-9aaa-4e7a-b88e-22b50c6194b0' }
-  );
-  assert.deepEqual(parseKickUrl('https://kick.com/xqc'), { kind: 'channel', slug: 'xqc' });
-  assert.equal(parseKickUrl('https://kick.com.evil.example/xqc'), null);
-  assert.equal(parseKickUrl('https://example.com/xqc'), null);
-});
-
-test('5. Lemon8 and Loom links must carry a post or recording id', () => {
+test('4. Lemon8 and Loom links must carry a post or recording id', () => {
   const lemon8 = parseLemon8Url('https://www.lemon8-app.com/@someone/7012345678901234567?region=us');
   assert.ok(lemon8, 'a Lemon8 post link should parse');
   assert.equal(lemon8?.postId, '7012345678901234567');
@@ -105,7 +86,7 @@ test('5. Lemon8 and Loom links must carry a post or recording id', () => {
   assert.equal(parseLoomUrl('https://loom.com.evil.example/share/44bff3b7cd784946a61686092a353f48'), null);
 });
 
-test('6. Sizes, counts, dates and durations read like a person wrote them', () => {
+test('5. Sizes, counts, dates and durations read like a person wrote them', () => {
   assert.equal(formatBytes(310615), '303 KB');
   assert.equal(formatBytes(0), '');
   assert.equal(formatBytes(null), '');

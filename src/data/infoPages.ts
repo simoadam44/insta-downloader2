@@ -26,7 +26,6 @@ export const INFO_PAGE_IDS = [
   'bluesky-downloader',
   'linkedin-downloader',
   'pinterest-downloader',
-  'kick-downloader',
   'lemon8-downloader',
   'loom-downloader',
 ] as const;
@@ -650,7 +649,7 @@ const PRIVACY: InfoPage = {
   h1: 'Privacy Policy',
   updated: '2026-11-15',
   intro: [
-    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram, Bluesky, LinkedIn, Pinterest or Kick downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
+    'This policy explains what happens to information when you visit www.igsavego.com and use the Instagram, Bluesky, LinkedIn, Pinterest, Lemon8 or Loom downloader. It is written to match the current implementation rather than a generic template, and it is reviewed when the service changes.',
     'In short: you do not need an account, we do not keep a history of the links you submit, and we do not sell personal information. Our hosting provider processes standard request data to deliver the site, and Google Analytics 4 measures aggregate usage. Those two facts are explained in detail below.',
   ],
   sections: [
@@ -675,7 +674,6 @@ const PRIVACY: InfoPage = {
             'Bluesky post links you paste into the Bluesky downloader. These are needed to read the post and locate its attached files.',
             'LinkedIn post links you paste into the LinkedIn downloader. These are needed to read the post and locate its attached video or images.',
             'Pinterest pin links you paste into the Pinterest downloader. These are needed to read the pin and locate its attached video or image.',
-            'Kick clip and VOD links you paste into the Kick downloader. These are needed to look the clip or stream up through Kick\'s public API and, for a clip, to stream its segments back to you.',
             'Messages you send to our contact address, including your email address, name if you include it, and the content of the message.',
             'Nothing else is required. There is no registration form, no payment flow, and no newsletter.',
           ],
@@ -701,10 +699,6 @@ const PRIVACY: InfoPage = {
         {
           type: 'p',
           text: 'A Pinterest link is sent to /api/pinterest. That endpoint reads the numeric pin id from the link, requests the pin\'s public page from pinterest.com, and reads the media addresses the page already contains. No Pinterest password, cookie or access token is sent, and the link is not stored in a database.',
-        },
-        {
-          type: 'p',
-          text: 'A Kick link is sent to /api/kick. That endpoint reads the clip id or VOD id from the link, asks Kick\'s public API for the clip or for that VOD\'s playback playlist, and returns the media addresses it finds. A clip download is then streamed by /api/kick-clip, which requests that clip\'s own segments from clips.kick.com and writes them to your response without storing them. No Kick account, cookie or API key is sent, and the link is not stored in a database.',
         },
         {
           type: 'p',
@@ -932,7 +926,7 @@ const TERMS: InfoPage = {
   updated: '2026-11-15',
   intro: [
     'These Terms of Use ("Terms") govern your use of www.igsavego.com and the downloaders it provides. By using the site, you agree to them. If you do not agree, please do not use the service.',
-    'IGSaveGo is a free utility for saving publicly accessible Instagram, Bluesky, LinkedIn, Pinterest and Kick media. It is independent from Instagram, Meta, Bluesky, LinkedIn, Pinterest and Kick, and it does not grant you rights to content you do not own.'
+    'IGSaveGo is a free utility for saving publicly accessible Instagram, Bluesky, LinkedIn, Pinterest, Lemon8 and Loom media. It is independent from Instagram, Meta, Bluesky, LinkedIn, Pinterest, Lemon8 and Loom, and it does not grant you rights to content you do not own.'
   ],
   sections: [
     {
@@ -941,7 +935,7 @@ const TERMS: InfoPage = {
       blocks: [
         {
           type: 'p',
-          text: 'IGSaveGo accepts a public Instagram, Bluesky, LinkedIn, Pinterest or Kick link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
+          text: 'IGSaveGo accepts a public Instagram, Bluesky, LinkedIn, Pinterest, Lemon8 or Loom link, resolves the media associated with it, and streams the file to your browser. The service is provided free of charge, without an account, and without any guarantee of availability or fitness for a particular purpose.',
         },
         {
           type: 'p',
@@ -1854,232 +1848,6 @@ const PINTEREST: InfoPage = {
   ],
 };
 
-const KICK: InfoPage = {
-  id: 'kick-downloader',
-  path: '/kick-downloader',
-  title: 'Kick Video Downloader — Save Kick Clips and VODs',
-  description:
-    'Download a public Kick clip as one file, grab its thumbnail, and get the real quality playlists for any Kick VOD. Free, no login, no watermark.',
-  h1: 'Kick Video Downloader',
-  updated: '2026-11-15',
-  tool: true,
-  keywords: [
-    'kick video downloader',
-    'kick clip downloader',
-    'kick vod downloader',
-    'download kick clip',
-    'download kick vod',
-    'kick clip download',
-    'save kick clip',
-    'kick.com video downloader',
-    'kick vod download',
-    'kick clip saver',
-  ],
-  intro: [
-    'This page saves a public Kick clip, its thumbnail, and resolves the quality playlists of a public Kick VOD. Paste the link, the tool reads Kick\'s public clip and channel APIs, and it returns what Kick actually publishes for that link.',
-    'Kick is a live streaming platform, so its media works differently from a photo app: a clip is a short HLS stream, and a VOD is an hours-long HLS stream. This page is honest about both cases, and the sections below say exactly what you get.',
-  ],
-  sections: [
-    {
-      id: 'how-it-works',
-      heading: 'How this Kick downloader works',
-      blocks: [
-        {
-          type: 'p',
-          text: 'Every Kick clip has an id that starts with clip_, and every VOD has a UUID that appears in its link. Both are visible in the address bar, for example https://kick.com/<channel>?clip=clip_01H811MXG4FBR62FXPE1AXABDH or https://kick.com/<channel>/videos/371f0495-9aaa-4e7a-b88e-22b50c6194b0.',
-        },
-        {
-          type: 'list',
-          ordered: true,
-          items: [
-            'Open the clip or the VOD on kick.com and copy its link.',
-            'Paste the link into the field above and press Get media.',
-            'The page sends the link to the IGSaveGo Kick endpoint, which reads Kick\'s public clip or channel API.',
-            'For a clip you get a download button and a thumbnail; for a VOD you get its quality playlists and a ready yt-dlp command.',
-          ],
-        },
-        {
-          type: 'note',
-          text: 'The clip id or VOD id is validated on the server before any request is made, so the link you paste can never point this server at a host of your choosing. No Kick account, cookie or API key is requested at any point.',
-        },
-      ],
-    },
-    {
-      id: 'what-you-can-download',
-      heading: 'What you can download',
-      blocks: [
-        {
-          type: 'list',
-          items: [
-            'Kick clips: the clip is rebuilt from Kick\'s own stream segments into one MPEG-TS file, so the video you get is the clip itself, not a screen recording.',
-            'Clip thumbnails: the PNG cover Kick publishes for the clip.',
-            'Kick VODs: the playlist link for each quality Kick serves (1080p60, 720p60, 480p, 360p and 160p when available), plus the exact yt-dlp command that saves it as one MP4.',
-            'VOD thumbnails: the artwork Kick publishes for the stream, at the largest size it lists.',
-          ],
-        },
-        {
-          type: 'p',
-          text: 'A clip is downloadable here in the browser because it is short. A VOD is not: a nine-hour stream is several gigabytes split into thousands of segments, and joining it needs ffmpeg on a real server, which is not what this site runs.',
-        },
-      ],
-    },
-    {
-      id: 'clip-format',
-      heading: 'Clips are delivered as MPEG-TS, and why',
-      blocks: [
-        {
-          type: 'p',
-          text: 'Kick publishes clips only as an HLS stream whose files are MPEG-TS segments. There is no progressive MP4 on Kick\'s clip storage to hand over, and this site does not re-encode video. The download therefore joins the clip\'s original segments in order into one .ts file.',
-        },
-        {
-          type: 'table',
-          head: ['What you need', 'What to do'],
-          rows: [
-            ['Watch or keep the clip', 'Open the .ts file in VLC, MPV, PotPlayer or KMPlayer — they play it directly.'],
-            ['An MP4 for editing or upload', 'Remux without quality loss: ffmpeg -i clip.ts -c copy clip.mp4'],
-            ['Play it in a browser or phone gallery', 'Not supported by the container; remux it to MP4 first, as above.'],
-          ],
-        },
-        {
-          type: 'p',
-          text: 'Nothing is transcoded, cropped or watermarked by this site: the bytes are Kick\'s own segments, joined in the order Kick listed them.',
-        },
-      ],
-    },
-    {
-      id: 'limits',
-      heading: 'What it cannot do',
-      blocks: [
-        {
-          type: 'list',
-          items: [
-            'Private, deleted and subscriber-only clips or VODs, which need a signed-in session.',
-            'Expired VODs: Kick removes older streams, and a VOD whose playback Kick no longer serves cannot be read.',
-            'Live channel links: a live broadcast has no end, so there is no single file to save.',
-            'Category, search, settings and following pages, which are not clips or VODs.',
-            'Saving a full VOD as one MP4 in the browser: use the playlist or the yt-dlp command the page gives you.',
-            'Bulk downloading of a whole channel, which this page does not offer.',
-          ],
-        },
-        {
-          type: 'p',
-          text: 'Kick also limits automated access. When it refuses a request, the page says so and suggests trying again later rather than showing an empty result.',
-        },
-      ],
-    },
-    {
-      id: 'privacy',
-      heading: 'Privacy and requests',
-      blocks: [
-        {
-          type: 'p',
-          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No Kick account is linked, no cookie is set for Kick, and files are streamed to your browser rather than stored on the server. The endpoint accepts up to 30 requests per minute from one IP address, and the clip download endpoint 20.',
-        },
-        {
-          type: 'p',
-          text: 'Kick delivers clips from clips.kick.com and artwork from images.kick.com, which is why this site\'s media proxy is allowed to forward files from those hosts and nothing else.',
-        },
-      ],
-    },
-    {
-      id: 'responsible-use',
-      heading: 'Copyright and responsible use',
-      blocks: [
-        {
-          type: 'p',
-          text: 'A clip being public does not make it free to reuse. The video still belongs to the streamer and to anyone else featured in it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the creator allows, ask permission when you need more, and credit the channel when you share it.',
-        },
-        {
-          type: 'p',
-          text: 'IGSaveGo is independent and is not affiliated with Kick. "Kick" is a trademark of its owner and is used here only to describe the platform whose public clip and VOD links this tool reads.',
-        },
-      ],
-    },
-  ],
-  faqs: [
-    {
-      question: 'Is this Kick video downloader free?',
-      answer:
-        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for Kick downloads on this page.',
-    },
-    {
-      question: 'Do I need a Kick account to download a clip?',
-      answer:
-        'No. You only need the link to a public clip. The page reads Kick\'s public clip API, so you can be logged out of Kick in every browser tab.',
-    },
-    {
-      question: 'Which Kick links are supported?',
-      answer:
-        'Clip links such as https://kick.com/<channel>?clip=clip_…, the /<channel>/clips/clip_… form, a bare clip id, and VOD links such as https://kick.com/<channel>/videos/<uuid>. Live channel links, categories, search and settings pages are reported as unsupported.',
-    },
-    {
-      question: 'How do I download a Kick clip?',
-      answer:
-        'Open the clip on Kick, copy the link, paste it above and press Get media. The result panel shows the clip with one download button, the file size measured from Kick\'s playlist, and the thumbnail as a second download.',
-    },
-    {
-      question: 'Why is the clip a .ts file and not an MP4?',
-      answer:
-        'Because Kick stores clips only as HLS MPEG-TS segments; there is no MP4 file to fetch, and this site does not re-encode. VLC, MPV, PotPlayer and ffmpeg open the .ts file directly, and remuxing it to MP4 without quality loss takes one command.',
-    },
-    {
-      question: 'How do I turn the clip into an MP4?',
-      answer:
-        'Run: ffmpeg -i clip.ts -c copy clip.mp4. The -c copy flag rewraps the stream without re-encoding, so it is fast and the quality does not change. VLC can also do it through Convert / Save.',
-    },
-    {
-      question: 'Can I download a Kick VOD as one file here?',
-      answer:
-        'Not directly, and the page does not pretend otherwise. A VOD is an hours-long HLS stream of several gigabytes split into thousands of segments, which a browser download or an edge function cannot join into one MP4. You get its exact quality playlists and a ready yt-dlp command instead.',
-    },
-    {
-      question: 'How do I use the VOD playlist the page gives me?',
-      answer:
-        'Copy a quality playlist and open it in VLC or MPV through Open Network Stream, or run the yt-dlp command shown in the card: it saves the highest quality video and audio as one MP4 file on your computer.',
-    },
-    {
-      question: 'Which VOD qualities are available?',
-      answer:
-        'Whatever Kick publishes for that stream: 1080p60, 720p60, 480p, 360p and 160p normally, with their resolutions and bitrates listed next to each playlist. The page reads them from Kick\'s master playlist each time, so expired or missing qualities are not offered.',
-    },
-    {
-      question: 'Why does a channel link say there is nothing to download?',
-      answer:
-        'A channel page can be showing a live broadcast, and a live stream has no end and no single file. When the broadcast finishes, Kick publishes it as a VOD that this page can read.',
-    },
-    {
-      question: 'Can I download a subscriber-only or deleted clip?',
-      answer:
-        'No. Those need a signed-in session with the right subscription, and this tool only reads public data. Deleted clips, removed channels and expired VODs are reported as errors instead of guessed at.',
-    },
-    {
-      question: 'Does the tool store my links or the downloaded files?',
-      answer:
-        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded clips. Standard request logs and rate-limit counters are covered by the privacy policy.',
-    },
-    {
-      question: 'Does this work on a phone?',
-      answer:
-        'The page works in Safari on iPhone and Chrome on Android, and the clip download saves through your browser. Playing the resulting .ts file needs a video app that opens MPEG-TS, so on a phone it is often easier to remux it to MP4 on a computer first.',
-    },
-    {
-      question: 'Is it legal to download someone else\'s Kick clip?',
-      answer:
-        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the streamer\'s wishes, and do not present someone else\'s work as your own.',
-    },
-    {
-      question: 'Is IGSaveGo affiliated with Kick?',
-      answer:
-        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by Kick. Kick is named only to describe the platform whose public clip and VOD links this tool reads.',
-    },
-  ],
-  related: [
-    ...relatedFor('kick-downloader'),
-    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
-    { label: 'Pinterest Video Downloader', href: '/pinterest-downloader' },
-  ],
-};
-
 const LEMON8: InfoPage = {
   id: 'lemon8-downloader',
   path: '/lemon8-downloader',
@@ -2285,7 +2053,6 @@ const LEMON8: InfoPage = {
   related: [
     ...relatedFor('lemon8-downloader'),
     { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
-    { label: 'Kick Video Downloader', href: '/kick-downloader' },
   ],
 };
 
@@ -2490,7 +2257,6 @@ export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   'bluesky-downloader': BLUESKY,
   'linkedin-downloader': LINKEDIN,
   'pinterest-downloader': PINTEREST,
-  'kick-downloader': KICK,
   'lemon8-downloader': LEMON8,
   'loom-downloader': LOOM,
 };

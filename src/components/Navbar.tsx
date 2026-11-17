@@ -9,7 +9,6 @@ import {
   CloudSun,
   Linkedin,
   Pin,
-  Gamepad2,
   MonitorPlay,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
@@ -70,7 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'nav-link-bluesky', href: '/bluesky-downloader', label: 'Bluesky', icon: CloudSun, iconClass: 'text-sky-500', mobileClass: 'bg-sky-50 text-sky-800 hover:bg-sky-100' },
     { id: 'nav-link-linkedin', href: '/linkedin-downloader', label: 'LinkedIn', icon: Linkedin, iconClass: 'text-blue-600', mobileClass: 'bg-blue-50 text-blue-800 hover:bg-blue-100' },
     { id: 'nav-link-pinterest', href: '/pinterest-downloader', label: 'Pinterest', icon: Pin, iconClass: 'text-red-600', mobileClass: 'bg-red-50 text-red-800 hover:bg-red-100' },
-    { id: 'nav-link-kick', href: '/kick-downloader', label: 'Kick', icon: Gamepad2, iconClass: 'text-emerald-600', mobileClass: 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100' },
     { id: 'nav-link-lemon8', href: '/lemon8-downloader', label: 'Lemon8', icon: Sparkles, iconClass: 'text-amber-500', mobileClass: 'bg-amber-50 text-amber-800 hover:bg-amber-100' },
     { id: 'nav-link-loom', href: '/loom-downloader', label: 'Loom', icon: MonitorPlay, iconClass: 'text-sky-600', mobileClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200' },
   ];

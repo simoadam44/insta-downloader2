@@ -13,7 +13,6 @@ import { InfoPage } from './components/InfoPage';
 import { BlueskyDownloader } from './components/BlueskyDownloader';
 import { LinkedInDownloader } from './components/LinkedInDownloader';
 import { PinterestDownloader } from './components/PinterestDownloader';
-import { KickDownloader } from './components/KickDownloader';
 import { Lemon8Downloader } from './components/Lemon8Downloader';
 import { LoomDownloader } from './components/LoomDownloader';
 import { DynamicSitemapModal } from './components/DynamicSitemapModal';
@@ -655,13 +654,11 @@ export default function App() {
                   ? 'IGSaveGo · LinkedIn tool'
                   : infoPageId === 'pinterest-downloader'
                     ? 'IGSaveGo · Pinterest tool'
-                    : infoPageId === 'kick-downloader'
-                      ? 'IGSaveGo · Kick tool'
-                      : infoPageId === 'lemon8-downloader'
-                        ? 'IGSaveGo · Lemon8 tool'
-                        : infoPageId === 'loom-downloader'
-                          ? 'IGSaveGo · Loom tool'
-                          : undefined
+                    : infoPageId === 'lemon8-downloader'
+                      ? 'IGSaveGo · Lemon8 tool'
+                      : infoPageId === 'loom-downloader'
+                        ? 'IGSaveGo · Loom tool'
+                        : undefined
             }
             widget={
               infoPageId === 'bluesky-downloader' ? (
@@ -670,8 +667,6 @@ export default function App() {
                 <LinkedInDownloader />
               ) : infoPageId === 'pinterest-downloader' ? (
                 <PinterestDownloader />
-              ) : infoPageId === 'kick-downloader' ? (
-                <KickDownloader />
               ) : infoPageId === 'lemon8-downloader' ? (
                 <Lemon8Downloader />
               ) : infoPageId === 'loom-downloader' ? (
