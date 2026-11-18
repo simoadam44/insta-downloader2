@@ -29,6 +29,7 @@ const INFO_PAGES = [
   { path: '/pinterest-downloader', updated: '2026-11-15' },
   { path: '/lemon8-downloader', updated: '2026-11-16' },
   { path: '/loom-downloader', updated: '2026-11-16' },
+  { path: '/twitter-downloader', updated: '2026-11-18' },
 ];
 
 // Host allowlist: prevents Host-header poisoning of cached canonical URLs.

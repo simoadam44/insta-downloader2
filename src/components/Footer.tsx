@@ -17,6 +17,7 @@ import {
   Pin,
   Sparkles,
   MonitorPlay,
+  Twitter,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -39,6 +40,7 @@ const infoLinks = [
   { href: '/pinterest-downloader', label: 'Pinterest Video Downloader', icon: Pin },
   { href: '/lemon8-downloader', label: 'Lemon8 Video Downloader', icon: Sparkles },
   { href: '/loom-downloader', label: 'Loom Video Downloader', icon: MonitorPlay },
+  { href: '/twitter-downloader', label: 'X (Twitter) Video Downloader', icon: Twitter },
   { href: '/faq', label: 'FAQ', icon: HelpCircle },
   { href: '/contact', label: 'Contact Us', icon: Mail },
   { href: '/blog', label: 'Guides & Blog', icon: BookOpen },

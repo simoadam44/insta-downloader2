@@ -15,6 +15,7 @@ import { LinkedInDownloader } from './components/LinkedInDownloader';
 import { PinterestDownloader } from './components/PinterestDownloader';
 import { Lemon8Downloader } from './components/Lemon8Downloader';
 import { LoomDownloader } from './components/LoomDownloader';
+import { TwitterDownloader } from './components/TwitterDownloader';
 import { DynamicSitemapModal } from './components/DynamicSitemapModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import {
@@ -658,7 +659,9 @@ export default function App() {
                       ? 'IGSaveGo · Lemon8 tool'
                       : infoPageId === 'loom-downloader'
                         ? 'IGSaveGo · Loom tool'
-                        : undefined
+                        : infoPageId === 'twitter-downloader'
+                          ? 'IGSaveGo · X (Twitter) tool'
+                          : undefined
             }
             widget={
               infoPageId === 'bluesky-downloader' ? (
@@ -671,6 +674,8 @@ export default function App() {
                 <Lemon8Downloader />
               ) : infoPageId === 'loom-downloader' ? (
                 <LoomDownloader />
+              ) : infoPageId === 'twitter-downloader' ? (
+                <TwitterDownloader />
               ) : undefined
             }
           />

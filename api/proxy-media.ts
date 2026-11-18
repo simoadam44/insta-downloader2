@@ -42,7 +42,7 @@ function isAllowed(urlStr: string): boolean {
       /^(127\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|169\.254\.|0\.)/.test(h) ||
       /^\d+\.\d+\.\d+\.\d+$/.test(h)
     ) return false;
-    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com', 'bsky.app', 'bsky.network', 'bsky.social', 'licdn.com', 'pinimg.com'];
+    const roots = ['cdninstagram.com', 'fbcdn.net', 'instagram.com', 'threads.net', 'unsplash.com', 'pixabay.com', 'googleapis.com', 'bsky.app', 'bsky.network', 'bsky.social', 'licdn.com', 'pinimg.com', 'twimg.com'];
     return roots.some((r) => h === r || h.endsWith('.' + r));
   } catch {
     return false;
@@ -61,9 +61,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   const safeFilename = rawFilename.replace(/[\r\n\0\t"\\]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 80);
 
+  // The requesting CDN's own site is the accepted Referer, so X's twimg hosts
+  // see the same origin an embedded player would send.
+  let upstreamHost = '';
+  try {
+    upstreamHost = new URL(mediaUrl).hostname.toLowerCase();
+  } catch {
+    upstreamHost = '';
+  }
   const headers: Record<string, string> = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    Referer: 'https://www.instagram.com/',
+    Referer: upstreamHost.endsWith('twimg.com') ? 'https://x.com/' : 'https://www.instagram.com/',
     Accept: '*/*',
   };
   if (req.headers.range && typeof req.headers.range === 'string' && /^bytes=\d*-\d*(,\d*-\d*)*$/.test(req.headers.range)) {

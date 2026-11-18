@@ -28,6 +28,7 @@ export const INFO_PAGE_IDS = [
   'pinterest-downloader',
   'lemon8-downloader',
   'loom-downloader',
+  'twitter-downloader',
 ] as const;
 
 export type InfoPageId = (typeof INFO_PAGE_IDS)[number];
@@ -2246,6 +2247,239 @@ const LOOM: InfoPage = {
   ],
 };
 
+const TWITTER: InfoPage = {
+  id: 'twitter-downloader',
+  path: '/twitter-downloader',
+  title: 'X (Twitter) Video Downloader — Save Videos and Photos',
+  description:
+    'Download the video or photos from a public X (Twitter) post as the original MP4 or JPG file. Free, no login, no app and no watermark.',
+  h1: 'X (Twitter) Video Downloader',
+  updated: '2026-11-18',
+  tool: true,
+  keywords: [
+    'twitter video downloader',
+    'x video downloader',
+    'download twitter video',
+    'download x video',
+    'twitter video download',
+    'x video download',
+    'twitter photo downloader',
+    'x photo downloader',
+    'save twitter video',
+    'twitter mp4 download',
+    'twitter gif download',
+    'download videos from x',
+  ],
+  intro: [
+    'This page saves the video or photos attached to a public X post — the network formerly called Twitter. Paste the post link, the tool reads the post\'s public view, and it offers the file X publishes for that post.',
+    'It works the same way as the other downloaders on this site: one field, no account sign-in, no browser extension and nothing to install. X is a separate network with its own rules, so the tool and its limits are described separately here.',
+  ],
+  sections: [
+    {
+      id: 'how-it-works',
+      heading: 'How this X downloader works',
+      blocks: [
+        {
+          type: 'p',
+          text: 'Every post has a numeric id, and the link you copy contains it, for example https://x.com/NASA/status/2051361508181856362. X also renders each public post through the same embed view that news sites use for quoted posts, and that view works without a signed-in session.',
+        },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            'Open the post on X and copy its link (or use the share menu in the app).',
+            'Paste the link into the field above and press Get media.',
+            'The page sends the numeric post id to the IGSaveGo X endpoint, which reads the post\'s public view and returns the media it carries.',
+            'The result card appears with the author, the post text, and a download button for the video or for each photo.',
+          ],
+        },
+        {
+          type: 'note',
+          text: 'The tool rebuilds the X address from the numeric post id, so the link you paste can never point this server at a host of your choosing. No X password, cookie or API key is requested at any point.',
+        },
+      ],
+    },
+    {
+      id: 'what-you-can-download',
+      heading: 'What you can download',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Video posts: the progressive MP4 that X publishes for playback is offered as a download.',
+            'Photo posts: every photo in the post is listed separately, at the size of the original upload rather than the small timeline thumbnail.',
+            'Animated GIFs: X stores and serves these as MP4 files, so they download as MP4 with no audio track.',
+            'The post itself is not altered: no re-encode, no watermark and no overlay is added.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'Posts that only contain text, posts that only quote another post, and posts whose media has been removed are reported as errors instead of returning an invented result.',
+        },
+      ],
+    },
+    {
+      id: 'quality',
+      heading: 'Original files, not screen recordings',
+      blocks: [
+        {
+          type: 'p',
+          text: 'For a photo, X keeps the file the author uploaded, and this tool asks for that original rather than the resized preview used in timelines. For a video, X publishes a fixed set of MP4 renditions; the tool checks them from largest to smallest and offers the largest one the CDN actually returns, with its real byte size measured at request time.',
+        },
+        {
+          type: 'table',
+          head: ['Media', 'What you get', 'What the result card shows'],
+          rows: [
+            ['Video', 'The MP4 rendition X publishes for the post', 'The rendition\'s own pixel size and measured file size'],
+            ['Photo', 'The original upload on X\'s CDN', 'The original pixel size, format and measured file size'],
+            ['Quality choices', 'None are invented: one file per photo or video', 'No 1080p or 4K labels that X does not provide'],
+          ],
+        },
+        {
+          type: 'p',
+          text: 'X does not offer a resolution picker for downloads. When a post has several MP4 renditions, the page states which sizes exist and which one is being offered, so the file you receive is exactly one of them.',
+        },
+      ],
+    },
+    {
+      id: 'limits',
+      heading: 'What it cannot do',
+      blocks: [
+        {
+          type: 'list',
+          items: [
+            'Protected posts, whose author approved only specific followers.',
+            'Deleted posts, and posts withheld in your region or removed by X.',
+            'Age-restricted posts and posts behind a login or consent wall.',
+            'Profile, search, hashtag, list and community pages: those are not single posts and are rejected.',
+            'Text-only posts and quote-post links, which carry no media of their own.',
+            'Bulk downloading of a whole timeline or account, which this page does not offer.',
+            'The tool does not edit, watermark, transcode or merge files. It hands over what the author published.',
+          ],
+        },
+        {
+          type: 'p',
+          text: 'X also limits automated access. When it refuses a request, the page says so plainly instead of retrying forever or pretending the post has no media. Videos that were still processing when posted can also be unreadable for a few minutes.',
+        },
+      ],
+    },
+    {
+      id: 'privacy',
+      heading: 'Privacy and requests',
+      blocks: [
+        {
+          type: 'p',
+          text: 'The link you paste is sent to this site\'s endpoint so it can be resolved. No X account is linked, no cookie is set for X, and the file is streamed to your browser rather than stored on the server. The endpoint accepts up to 30 requests per minute from one IP address to keep it usable.',
+        },
+        {
+          type: 'p',
+          text: 'X delivers photos and videos from twimg.com, which is why this site\'s media proxy is allowed to forward files from that host and nothing else. When a file cannot be proxied, the result card links straight to the X CDN and the download opens on that host; the card says so when it happens.',
+        },
+      ],
+    },
+    {
+      id: 'responsible-use',
+      heading: 'Copyright and responsible use',
+      blocks: [
+        {
+          type: 'p',
+          text: 'A post being public does not make its content free to reuse. The video or photo still belongs to the person who created it, and downloading a copy does not transfer any right to republish, monetise or claim it. Use the file for what the author allows, ask permission when you need more, and credit the creator when you share it.',
+        },
+        {
+          type: 'p',
+          text: 'Reposts on X often point at work published elsewhere first. If the post credits another creator or links to an original source, that creator is the rights holder.',
+        },
+        {
+          type: 'p',
+          text: 'IGSaveGo is independent and is not affiliated with X Corp. or with the former Twitter, Inc. "X" and "Twitter" are trademarks of their owner and are used here only to describe the platform whose public post links this tool reads.',
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: 'Is this X (Twitter) video downloader free?',
+      answer:
+        'Yes. The tool runs on this site and does not ask for payment, an account, a subscription or an API key. There is no premium tier for X downloads on this page.',
+    },
+    {
+      question: 'Do I need an X or Twitter account to download a post?',
+      answer:
+        'No. You only need the link to a public post. The page reads the post\'s public view, so you can be logged out of X in every browser tab.',
+    },
+    {
+      question: 'Which links are supported?',
+      answer:
+        'Post links on x.com or twitter.com that contain the numeric post id, for example https://x.com/NASA/status/2051361508181856362. Links with a language prefix, mobile.twitter.com, the /i/web/status/ form, a /photo/1 or /video/1 suffix and a bare numeric id all work. Profile, search and hashtag links are not supported.',
+    },
+    {
+      question: 'How do I download a video from X?',
+      answer:
+        'Open the post, copy its link, paste it into the field above and press Get media. The result card then offers the MP4 file with one download button.',
+    },
+    {
+      question: 'Can I download photos from a Twitter post?',
+      answer:
+        'Yes. Every photo in the post is listed as its own item, and each one is requested at the size of the original upload instead of the small timeline thumbnail. The card reports the real format and size the CDN returned.',
+    },
+    {
+      question: 'Can I download a whole photo gallery at once?',
+      answer:
+        'The page lists each photo of the post separately so you can save the ones you want, but it does not package them into a ZIP archive. X allows up to four photos in one post, and all four are shown when present.',
+    },
+    {
+      question: 'Can I download GIFs from X?',
+      answer:
+        'X stores animated GIFs as MP4 files, so they download through the video path and arrive as MP4 without an audio track. The page does not convert them back into a GIF file.',
+    },
+    {
+      question: 'What quality and format do I get?',
+      answer:
+        'You get the file X publishes for the post: an MP4 for video and the original image for photos. Nothing is transcoded or watermarked by this site, and the sizes shown are measured from the file itself.',
+    },
+    {
+      question: 'Why is there no 1080p or 4K choice?',
+      answer:
+        'Because X publishes a fixed set of video renditions rather than a menu you can pick from. Offering a list of invented resolutions would be misleading, so the card names the renditions that exist and offers the largest one that responded.',
+    },
+    {
+      question: 'Why do some posts return an error?',
+      answer:
+        'Deleted posts, protected posts, age-restricted posts and posts withheld in a region are not shown to a logged-out reader, so there is nothing to download. Text-only posts and quote-post links carry no media of their own, and the page explains that instead of guessing.',
+    },
+    {
+      question: 'Can I download a video from a protected account?',
+      answer:
+        'No. Protected posts require an approved follower session, and this tool only reads the public view. It also cannot read deleted posts or posts removed by X.',
+    },
+    {
+      question: 'Does the tool store my links or the downloaded files?',
+      answer:
+        'The link is used to answer your request and the media is streamed to your browser; the service does not build a library of downloaded posts. Standard request logs and rate-limit counters are covered by the privacy policy.',
+    },
+    {
+      question: 'Is it legal to download someone else\'s X video?',
+      answer:
+        'That depends on the content, your purpose and the law where you are. Public visibility is not the same as permission to republish. Keep private use private, respect the creator\'s wishes, and do not present someone else\'s work as your own.',
+    },
+    {
+      question: 'Does this work on a phone?',
+      answer:
+        'Yes. The page is a normal web page: open it in Safari on iPhone or Chrome on Android, paste the post link and use the download button. The file is saved through your browser\'s download flow.',
+    },
+    {
+      question: 'Is IGSaveGo affiliated with X or Twitter?',
+      answer:
+        'No. IGSaveGo is an independent project and is not affiliated with, endorsed by or sponsored by X Corp. X and Twitter are named only to describe the platform whose public post links this tool reads.',
+    },
+  ],
+  related: [
+    ...relatedFor('twitter-downloader'),
+    { label: 'Instagram Video Downloader', href: '/en/video-downloader' },
+    { label: 'Pinterest Video Downloader', href: '/pinterest-downloader' },
+  ],
+};
+
 export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   about: ABOUT,
   contact: CONTACT,
@@ -2259,6 +2493,7 @@ export const INFO_PAGES: Record<InfoPageId, InfoPage> = {
   'pinterest-downloader': PINTEREST,
   'lemon8-downloader': LEMON8,
   'loom-downloader': LOOM,
+  'twitter-downloader': TWITTER,
 };
 
 /** Returns the page content for a pathname, or null when it is not a static page. */

@@ -30,6 +30,7 @@ npm run dev
 | أداة Pinterest | http://localhost:3000/pinterest-downloader |
 | أداة Lemon8 | http://localhost:3000/lemon8-downloader |
 | أداة Loom | http://localhost:3000/loom-downloader |
+| أداة X (Twitter) | http://localhost:3000/twitter-downloader |
 | صفحة كلمة مفتاحية | http://localhost:3000/instagram-video-downloader |
 | المدونة | http://localhost:3000/blog |
 | لوحة التحكم | http://localhost:3000/admin |

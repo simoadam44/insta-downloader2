@@ -33,7 +33,7 @@ interface MediaResultCardProps {
   // Which service produced this result. Defaults to Instagram so existing
   // pages keep their exact wording; 'bluesky' and 'linkedin' switch the card to
   // the original-file labels those extractors can actually back up.
-  source?: 'instagram' | 'bluesky' | 'linkedin' | 'pinterest' | 'lemon8' | 'loom';
+  source?: 'instagram' | 'bluesky' | 'linkedin' | 'pinterest' | 'lemon8' | 'loom' | 'twitter';
 }
 
 export const MediaResultCard: React.FC<MediaResultCardProps> = ({
@@ -80,7 +80,9 @@ export const MediaResultCard: React.FC<MediaResultCardProps> = ({
             ? 'Lemon8'
             : source === 'loom'
               ? 'Loom'
-              : 'Instagram';
+              : source === 'twitter'
+                ? 'X'
+                : 'Instagram';
   const currentItem = media.items[activeSlideIndex] || media.items[0];
   const isCarousel = media.items.length > 1;
 

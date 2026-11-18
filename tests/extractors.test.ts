@@ -1,10 +1,10 @@
-// URL parsing and formatting tests for the LinkedIn, Pinterest, Kick, Lemon8
-// and Loom extractors.
+// URL parsing and formatting tests for the LinkedIn, Pinterest, Lemon8, Loom
+// and X (Twitter) extractors.
 //
-// No network: every case here is pure input validation plus the shared
-// `lib/mediaFormat.ts` helpers. The rule being protected is that the server
-// only ever fetches a host it chose itself, so a pasted link is reduced to an
-// id and rebuilt — anything else must be rejected.
+// No network: every case here is pure input validation, token derivation and
+// the shared `lib/mediaFormat.ts` helpers. The rule being protected is that the
+// server only ever fetches a host it chose itself, so a pasted link is reduced
+// to an id and rebuilt — anything else must be rejected.
 //
 // Run with: npm test
 import test from 'node:test';
@@ -13,6 +13,12 @@ import { parseLinkedInPostUrl, linkedInPostUrl } from '../lib/linkedinExtract';
 import { parsePinterestPinUrl, isProxyablePinterestHost } from '../lib/pinterestExtract';
 import { parseLemon8Url } from '../lib/lemon8Extract';
 import { parseLoomUrl } from '../lib/loomExtract';
+import {
+  parseTwitterPostUrl,
+  tweetToken,
+  selectMp4s,
+  isProxyableTwitterHost,
+} from '../lib/twitterExtract';
 import { formatBytes, formatCount, formatDate, formatIsoDuration } from '../lib/mediaFormat';
 
 test('1. LinkedIn post links reduce to a numeric post id', () => {
@@ -86,7 +92,58 @@ test('4. Lemon8 and Loom links must carry a post or recording id', () => {
   assert.equal(parseLoomUrl('https://loom.com.evil.example/share/44bff3b7cd784946a61686092a353f48'), null);
 });
 
-test('5. Sizes, counts, dates and durations read like a person wrote them', () => {
+test('5. X posts reduce to a numeric id and only MP4 renditions are offered', () => {
+  const id = '2051361508181856362';
+  for (const link of [
+    `https://x.com/NASA/status/${id}`,
+    `https://twitter.com/NASA/status/${id}?s=20`,
+    `https://mobile.twitter.com/NASA/status/${id}/photo/1`,
+    `https://x.com/i/web/status/${id}`,
+    `https://x.com/NASA/statuses/${id}`,
+    id,
+  ]) {
+    assert.deepEqual(parseTwitterPostUrl(link), { id }, link);
+  }
+  for (const bad of [
+    '',
+    'not a url',
+    'https://x.com/NASA',
+    'https://x.com/search?q=launch',
+    'https://x.com/hashtag/space',
+    'https://t.co/AbCdEf123',
+    `https://x.com.evil.example/NASA/status/${id}`,
+    'https://x.com/NASA/status/123',
+  ]) {
+    assert.equal(parseTwitterPostUrl(bad), null, bad);
+  }
+  // The token is derived from the id, never from the pasted link.
+  assert.equal(tweetToken(id), '4zjiqxms3o');
+
+  // HLS playlists are dropped; MP4s sort best-first with their path size.
+  const renditions = selectMp4s({
+    type: 'video',
+    media_url_https: 'https://pbs.twimg.com/poster.jpg',
+    video_info: {
+      duration_millis: 47480,
+      variants: [
+        { content_type: 'application/x-mpegURL', url: 'https://video.twimg.com/x/playlist.m3u8' },
+        { content_type: 'video/mp4', bitrate: 256000, url: 'https://video.twimg.com/x/320x180/low.mp4' },
+        { content_type: 'video/mp4', bitrate: 2176000, url: 'https://video.twimg.com/x/1280x720/high.mp4' },
+        { content_type: 'video/mp4', bitrate: 832000, url: 'https://video.twimg.com/x/640x360/mid.mp4' },
+      ],
+    },
+  });
+  assert.deepEqual(
+    renditions.map((r) => `${r.width}x${r.height}@${r.bitrate}`),
+    ['1280x720@2176000', '640x360@832000', '320x180@256000']
+  );
+
+  assert.equal(isProxyableTwitterHost('video.twimg.com'), true);
+  assert.equal(isProxyableTwitterHost('twimg.com'), true);
+  assert.equal(isProxyableTwitterHost('eviltwimg.com'), false);
+});
+
+test('6. Sizes, counts, dates and durations read like a person wrote them', () => {
   assert.equal(formatBytes(310615), '303 KB');
   assert.equal(formatBytes(0), '');
   assert.equal(formatBytes(null), '');

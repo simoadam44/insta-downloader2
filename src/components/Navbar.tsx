@@ -10,6 +10,7 @@ import {
   Linkedin,
   Pin,
   MonitorPlay,
+  Twitter,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
 import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
@@ -71,6 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'nav-link-pinterest', href: '/pinterest-downloader', label: 'Pinterest', icon: Pin, iconClass: 'text-red-600', mobileClass: 'bg-red-50 text-red-800 hover:bg-red-100' },
     { id: 'nav-link-lemon8', href: '/lemon8-downloader', label: 'Lemon8', icon: Sparkles, iconClass: 'text-amber-500', mobileClass: 'bg-amber-50 text-amber-800 hover:bg-amber-100' },
     { id: 'nav-link-loom', href: '/loom-downloader', label: 'Loom', icon: MonitorPlay, iconClass: 'text-sky-600', mobileClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200' },
+    { id: 'nav-link-twitter', href: '/twitter-downloader', label: 'X / Twitter', icon: Twitter, iconClass: 'text-slate-900', mobileClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200' },
   ];
 
   return (

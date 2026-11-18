@@ -14,6 +14,7 @@ import { Lemon8Error, extractLemon8 } from './lib/lemon8Extract';
 import { LinkedInError, extractLinkedInPost } from './lib/linkedinExtract';
 import { LoomError, extractLoom } from './lib/loomExtract';
 import { PinterestError, extractPinterestPin } from './lib/pinterestExtract';
+import { TwitterError, extractTwitterPost } from './lib/twitterExtract';
 
 import { resolvePageHeadMeta } from './functions/_lib/pageMeta';
 import { injectSeoHead, resolveCanonicalOrigin } from './functions/_lib/seoHtml';
@@ -79,6 +80,7 @@ const rateLimitStores: Record<string, Map<string, RateLimitEntry>> = {
   linkedin: new Map(),
   loom: new Map(),
   pinterest: new Map(),
+  twitter: new Map(),
 };
 
 function checkRateLimit(
@@ -92,7 +94,8 @@ function checkRateLimit(
     | 'lemon8'
     | 'linkedin'
     | 'loom'
-    | 'pinterest',
+    | 'pinterest'
+    | 'twitter',
   maxRequests: number,
   windowMs: number
 ): boolean {
@@ -336,6 +339,8 @@ function isAllowedMediaUrl(inputUrl: string): { allowed: boolean; reason?: strin
       'ibyteimg.com',
       // Loom: signed recording files and thumbnails on cdn.loom.com.
       'loom.com',
+      // X: video.twimg.com MP4s and pbs.twimg.com photos/posters.
+      'twimg.com',
     ];
 
     // Must strictly match root domain or be a valid subdomain (e.g. .cdninstagram.com)
@@ -1382,6 +1387,49 @@ app.all('/api/pinterest', async (req: Request, res: Response) => {
   }
 });
 
+// X (formerly Twitter) post extraction. X removed anonymous API access, but
+// the endpoint behind its own embedded-tweet widget is still public and
+// token-only, and it returns the post's photos or the MP4 renditions of its
+// video. The logic lives in lib/twitterExtract.ts, shared with the Cloudflare
+// and Vercel functions.
+app.all('/api/twitter', async (req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(clientIp, 'twitter', 30, 60 * 1000)) {
+    return res.status(429).json({ error: 'Too many requests. Please wait a minute.' });
+  }
+
+  const rawUrl = String((req.query.url as string) || req.body?.url || '').trim();
+  if (!rawUrl) {
+    return res.status(400).json({
+      error: 'Paste a public X post link, for example https://x.com/NASA/status/2051361508181856362',
+    });
+  }
+  if (rawUrl.length > 2048) {
+    return res.status(414).json({ error: 'URL is too long.' });
+  }
+
+  try {
+    const result = await extractTwitterPost(rawUrl);
+    return res.json(result);
+  } catch (error) {
+    if (error instanceof TwitterError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    console.error('X extraction error:', error);
+    return res
+      .status(502)
+      .json({ error: 'Could not read that X post. Please check the link and try again.' });
+  }
+});
+
 // Lemon8 post extraction: the public post page embeds its own image/video
 // addresses in the Remix loader payload, which lib/lemon8Extract.ts decodes.
 // The video is a progressive MP4 on tiktokcdn, so /api/proxy-media saves it
@@ -1516,7 +1564,9 @@ app.get('/api/proxy-media', async (req: Request, res: Response) => {
           ? 'https://www.linkedin.com/'
           : upstreamHost.endsWith('pinimg.com')
             ? 'https://www.pinterest.com/'
-            : 'https://www.instagram.com/',
+            : upstreamHost.endsWith('twimg.com')
+              ? 'https://x.com/'
+              : 'https://www.instagram.com/',
       Accept: '*/*',
     };
 
