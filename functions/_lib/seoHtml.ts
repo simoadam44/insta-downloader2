@@ -33,6 +33,11 @@ export type ToolSlug = (typeof TOOL_SLUGS)[number];
 
 const RTL_LANGUAGES = ['ar'];
 
+export interface HreflangAlternate {
+  hreflang: string;
+  href: string;
+}
+
 export interface PageHeadMeta {
   /** Absolute canonical URL. Omitted when the route is not a known public page. */
   canonicalUrl?: string;
@@ -40,6 +45,14 @@ export interface PageHeadMeta {
   description?: string;
   ogType?: 'website' | 'article';
   lang?: string;
+  /** Self-referencing hreflang cluster, injected into the first HTML response. */
+  alternates?: HreflangAlternate[];
+  /**
+   * Real page text (h1 + intro + a few sections) placed inside #root in the
+   * first response, so crawlers that do not execute JavaScript still read the
+   * page. React replaces it on mount, so it is never shown twice.
+   */
+  crawlHtml?: string;
 }
 
 export type RouteInfo =
@@ -196,6 +209,49 @@ export function languageDirection(lang: string | undefined): 'ltr' | 'rtl' {
   return lang && RTL_LANGUAGES.includes(lang) ? 'rtl' : 'ltr';
 }
 
+/**
+ * hreflang cluster for a route. Only routes whose body is genuinely localized
+ * are listed together; the homepage is the English default, so its x-default is
+ * `/` (not `/en/video-downloader`, which contradicted its own canonical).
+ */
+export function buildHreflangCluster(route: RouteInfo, origin: string): HreflangAlternate[] {
+  const abs = (path: string) => `${origin}${path}`;
+
+  if (route.kind === 'home') {
+    return [
+      { hreflang: 'en', href: abs('/') },
+      ...LANGUAGE_CODES.filter((l) => l !== 'en').map((l) => ({
+        hreflang: l,
+        href: abs(`/${l}/video-downloader`),
+      })),
+      { hreflang: 'x-default', href: abs('/') },
+    ];
+  }
+
+  if (route.kind === 'lang') {
+    return [
+      ...LANGUAGE_CODES.map((l) => ({ hreflang: l, href: abs(`/${l}/video-downloader`) })),
+      { hreflang: 'x-default', href: abs('/en/video-downloader') },
+    ];
+  }
+
+  if (route.kind === 'tool' || route.kind === 'lang-tool') {
+    return [
+      ...LANGUAGE_CODES.map((l) => ({ hreflang: l, href: abs(`/${l}/${route.toolSlug}`) })),
+      { hreflang: 'x-default', href: abs(`/en/${route.toolSlug}`) },
+    ];
+  }
+
+  if (route.kind === 'info') {
+    return [
+      { hreflang: 'en', href: abs(route.path) },
+      { hreflang: 'x-default', href: abs(route.path) },
+    ];
+  }
+
+  return [];
+}
+
 function escapeAttr(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -255,7 +311,162 @@ export function injectSeoHead(html: string, meta: PageHeadMeta): string {
     out = upsertMeta(out, 'property', 'og:url', meta.canonicalUrl);
   }
 
+  // hreflang belongs in the HTML, not only in the sitemap: crawlers that fetch
+  // a page URL directly must see the cluster without running the client code.
+  if (meta.alternates && meta.alternates.length > 0) {
+    out = out.replace(/^[ \t]*<link[^>]*\brel=["']alternate["'][^>]*>[ \t]*\r?\n?/gim, '');
+    const tags = meta.alternates
+      .map((a) => `  <link rel="alternate" hreflang="${escapeAttr(a.hreflang)}" href="${escapeAttr(a.href)}" />`)
+      .join('\n');
+    out = out.replace(/<\/head>/i, `${tags}\n  </head>`);
+  }
+
+  if (meta.crawlHtml) {
+    out = injectCrawlBody(out, meta.crawlHtml);
+  }
+
   return out;
+}
+
+/**
+ * Put the page's real text inside the empty SPA mount point.
+ *
+ * This is not cloaking and not hidden text: it is the same H1/intro/sections the
+ * app renders, served for clients that never run JavaScript (Bing, Yandex, most
+ * AI crawlers). `createRoot().render()` clears the container on mount, so a
+ * human sees the app, never a duplicate copy.
+ */
+export function injectCrawlBody(html: string, blockHtml: string): string {
+  if (!blockHtml.trim()) return html;
+  const wrapped = `<div id="seo-prerender" style="max-width:60rem;margin:0 auto;padding:2rem 1rem;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a;line-height:1.7">${blockHtml}</div>`;
+  if (/<div id="root">\s*<\/div>/i.test(html)) {
+    return html.replace(/<div id="root">\s*<\/div>/i, `<div id="root">${wrapped}</div>`);
+  }
+  // Fallback for a shell without the mount point (older builds, tests): the
+  // block still goes into the document so the text is never lost.
+  if (/<\/body>/i.test(html)) {
+    return html.replace(/<body([^>]*)>/i, `<body$1>${wrapped}`);
+  }
+  return html;
+}
+
+// ---------------------------------------------------------------------------
+// Real 404 page
+//
+// Before this existed, every unknown path was answered by the SPA shell: HTTP
+// 200, the homepage <title>, no canonical. Google treats those as soft 404s,
+// so junk URLs looked like real pages and burned crawl budget.
+//
+// This page is plain HTML (no JS, no SPA): it is served with status 404 and
+// `noindex, follow`, and it links to the pages a lost visitor actually wants,
+// which also gives the crawler a way back into the site from a dead URL.
+// ---------------------------------------------------------------------------
+
+interface NotFoundCopy {
+  lang: string;
+  title: string;
+  heading: string;
+  body: string;
+  home: string;
+  guides: string;
+  faq: string;
+  contact: string;
+  toolsHeading: string;
+  tools: Array<{ href: string; label: string }>;
+}
+
+const NOT_FOUND_EN: NotFoundCopy = {
+  lang: 'en',
+  title: 'Page not found — IGSaveGo',
+  heading: 'Page not found',
+  body: 'The page you requested does not exist or has moved. Try one of the links below.',
+  home: 'Instagram video downloader',
+  guides: 'Download guides',
+  faq: 'FAQ',
+  contact: 'Contact us',
+  toolsHeading: 'Other Instagram tools',
+  tools: [
+    { href: '/en/photo-downloader', label: 'Photo downloader' },
+    { href: '/en/reels-downloader', label: 'Reels downloader' },
+    { href: '/en/story-saver', label: 'Story saver' },
+    { href: '/en/highlights-downloader', label: 'Highlights downloader' },
+  ],
+};
+
+const NOT_FOUND_AR: NotFoundCopy = {
+  lang: 'ar',
+  title: 'الصفحة غير موجودة — IGSaveGo',
+  heading: 'الصفحة غير موجودة',
+  body: 'الصفحة التي طلبتها غير موجودة أو تم نقلها. جرّب أحد الروابط التالية.',
+  home: 'تحميل فيديو من انستقرام',
+  guides: 'أدلة التحميل',
+  faq: 'الأسئلة الشائعة',
+  contact: 'اتصل بنا',
+  toolsHeading: 'أدوات انستقرام الأخرى',
+  tools: [
+    { href: '/ar/photo-downloader', label: 'تحميل صور انستقرام' },
+    { href: '/ar/reels-downloader', label: 'تحميل ريلز انستقرام' },
+    { href: '/ar/story-saver', label: 'حفظ ستوري انستقرام' },
+    { href: '/ar/highlights-downloader', label: 'تحميل هايلايت انستقرام' },
+  ],
+};
+
+/** Standalone 404 document. No script tags: it must render without JS. */
+export function renderNotFoundHtml(lang: string = 'en'): string {
+  const copy = lang === 'ar' ? NOT_FOUND_AR : NOT_FOUND_EN;
+  const dir = languageDirection(copy.lang);
+  const tools = copy.tools
+    .map((tool) => `<li><a href="${tool.href}">${tool.label}</a></li>`)
+    .join('');
+
+  return [
+    '<!doctype html>',
+    `<html lang="${copy.lang}" dir="${dir}">`,
+    '<head>',
+    '<meta charset="utf-8" />',
+    '<meta name="viewport" content="width=device-width, initial-scale=1" />',
+    `<title>${copy.title}</title>`,
+    '<meta name="robots" content="noindex, follow" />',
+    '<style>',
+    'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;',
+    'font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#f8fafc;color:#0f172a}',
+    'main{max-width:34rem;padding:2.5rem 1.5rem;text-align:center}',
+    'h1{font-size:2rem;margin:0 0 .75rem}',
+    'p{color:#475569;line-height:1.6;margin:0 0 1.5rem}',
+    'ul{list-style:none;padding:0;margin:0 0 1.5rem;display:grid;gap:.5rem}',
+    'a{color:#e11d48;text-decoration:none;font-weight:600}',
+    'a:hover{text-decoration:underline}',
+    '.primary{display:inline-block;margin-bottom:1.5rem;padding:.75rem 1.5rem;border-radius:.75rem;',
+    'background:#e11d48;color:#fff}',
+    '.primary:hover{background:#be123c;text-decoration:none}',
+    '.muted{font-size:.8rem;color:#94a3b8;margin-top:1.5rem}',
+    '</style>',
+    '</head>',
+    '<body>',
+    '<main>',
+    `<p class="muted">404</p>`,
+    `<h1>${copy.heading}</h1>`,
+    `<p>${copy.body}</p>`,
+    `<a class="primary" href="/">${copy.home}</a>`,
+    `<h2 style="font-size:.9rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b">${copy.toolsHeading}</h2>`,
+    `<ul>${tools}</ul>`,
+    `<p><a href="/blog">${copy.guides}</a> · <a href="/faq">${copy.faq}</a> · <a href="/contact">${copy.contact}</a></p>`,
+    '</main>',
+    '</body>',
+    '</html>',
+  ].join('');
+}
+
+/** 404 response: real status, noindex+follow, never cached as a valid page. */
+export function notFoundResponse(lang: string = 'en'): Response {
+  return new Response(renderNotFoundHtml(lang), {
+    status: 404,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Robots-Tag': 'noindex, follow',
+    },
+  });
 }
 
 /** True when the response is an HTML document we are allowed to rewrite. */

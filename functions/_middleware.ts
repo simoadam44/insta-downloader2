@@ -11,14 +11,16 @@
 // 4. Keeps STAGING (*.pages.dev) and /admin out of search indexes via
 //    `X-Robots-Tag: noindex, nofollow`.
 // Bodies (including media streams and JSON APIs) pass through untouched.
-import { resolvePageHeadMeta } from './_lib/pageMeta';
+import { resolveRouteOutcome } from './_lib/pageMeta';
 import { buildSitemapResponse, resolveSeoOrigin, YANDEX_PATH, yandexResponse } from './_lib/seo-files';
 import {
   injectSeoHead,
   isRewritableHtml,
+  notFoundResponse,
   prepareRewrittenHeaders,
   resolveCanonicalOrigin,
   resolveCanonicalRedirect,
+  LANGUAGE_CODES,
 } from './_lib/seoHtml';
 
 interface MiddlewareContext {
@@ -66,8 +68,30 @@ export async function onRequest(context: MiddlewareContext): Promise<Response> {
       return res;
     }
 
-    const meta = await resolvePageHeadMeta(url.pathname, context.env, resolveCanonicalOrigin(url));
-    if (!meta) {
+    const outcome = await resolveRouteOutcome(url.pathname, context.env, resolveCanonicalOrigin(url));
+
+    // Real 404: unknown paths and unpublished DB slugs stop here instead of
+    // being answered with the SPA shell (HTTP 200 + homepage title), which is
+    // exactly what produced the soft-404 pattern in Search Console.
+    if (outcome.status === 'not-found') {
+      const first = url.pathname.replace(/^\/+/, '').split('/')[0].toLowerCase();
+      const lang = (LANGUAGE_CODES as readonly string[]).includes(first) ? first : 'en';
+      return notFoundResponse(lang);
+    }
+
+    // Consolidated URLs (keyword landing pages) answer with one permanent
+    // redirect to the page that actually serves that intent.
+    if (outcome.status === 'redirect') {
+      return new Response(null, {
+        status: 301,
+        headers: {
+          Location: `${resolveCanonicalOrigin(url)}${outcome.to}`,
+          'Cache-Control': 'public, max-age=3600',
+        },
+      });
+    }
+
+    if (outcome.status === 'passthrough') {
       if (headers.get('X-Robots-Tag')) {
         return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
       }
@@ -75,7 +99,7 @@ export async function onRequest(context: MiddlewareContext): Promise<Response> {
     }
 
     const html = await res.text();
-    return new Response(injectSeoHead(html, meta), {
+    return new Response(injectSeoHead(html, outcome.meta), {
       status: res.status,
       statusText: res.statusText,
       headers: prepareRewrittenHeaders(headers),

@@ -278,6 +278,37 @@ test('13. apex info URLs 301 once to the www canonical', async () => {
 });
 
 // ---------------------------------------------------------------------------
+// 12b-12c. Crawlable first response: hreflang + real page text
+// ---------------------------------------------------------------------------
+
+test('12b. every info page ships its hreflang cluster and real text without JS', async () => {
+  for (const id of INFO_PAGE_IDS) {
+    const html = await (await fetchRoute(`${ORIGIN}/${id}`)).text();
+    assert.match(html, /<link rel="alternate" hreflang="x-default"/, `${id}: x-default hreflang`);
+    assert.match(html, new RegExp(`hreflang="en" href="${ORIGIN.replace(/\./g, '\\.')}/${id}"`), `${id}: self hreflang`);
+    assert.match(html, /id="seo-prerender"/, `${id}: prerender block`);
+    assert.ok(html.includes(INFO_PAGES[id].h1.split(' ')[0]), `${id}: heading text in HTML`);
+    assert.doesNotMatch(html, /<div id="root">\s*<\/div>/, `${id}: root must not be empty`);
+  }
+});
+
+test('12c. homepage hreflang cluster is self-referencing (x-default = /)', async () => {
+  const html = await (await fetchRoute(`${ORIGIN}/`)).text();
+  assert.match(html, new RegExp(`hreflang="x-default" href="${ORIGIN.replace(/\./g, '\\.')}/"`));
+  assert.match(html, new RegExp(`hreflang="en" href="${ORIGIN.replace(/\./g, '\\.')}/"`));
+  assert.match(html, /id="seo-prerender"/);
+});
+
+test('12d. the crawlable block links the tool siblings and platform pages', async () => {
+  const html = await (await fetchRoute(`${ORIGIN}/`)).text();
+  for (const href of ['/en/photo-downloader', '/en/reels-downloader', '/en/story-saver', '/en/highlights-downloader', '/loom-downloader', '/bluesky-downloader', '/blog']) {
+    assert.ok(html.includes(`href="${href}"`), `home must link ${href}`);
+  }
+  const page = await (await fetchRoute(`${ORIGIN}/loom-downloader`)).text();
+  assert.ok(page.includes('href="/en/video-downloader"'), 'info pages link the Instagram tools');
+});
+
+// ---------------------------------------------------------------------------
 // 14-16. Metadata helper, sitemap and robots
 // ---------------------------------------------------------------------------
 
@@ -307,6 +338,22 @@ test('15. sitemap.xml lists all thirteen info pages on the www origin', async ()
 
   const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   for (const loc of locs) assert.ok(loc.startsWith(`${ORIGIN}/`), loc);
+});
+
+test('15b. sitemap drops redirecting keyword URLs and legacy changefreq/priority', async () => {
+  const xml = await (await fetchRoute(`${ORIGIN}/sitemap.xml`)).text();
+  assert.doesNotMatch(xml, /<changefreq>/);
+  assert.doesNotMatch(xml, /<priority>/);
+  assert.doesNotMatch(xml, /instagram-video-downloader<\/loc>/);
+  assert.match(xml, new RegExp(`hreflang="x-default" href="${ORIGIN.replace(/\./g, '\\.')}/"`));
+});
+
+test('17. keyword landing pages answer 301 to the homepage instead of rendering again', async () => {
+  for (const path of ['/instagram-video-downloader', '/ig-downloader', '/save-insta-video', '/instagram-downloader-4k']) {
+    const response = await fetchRoute(`${ORIGIN}${path}`);
+    assert.equal(response.status, 301, path);
+    assert.equal(response.headers.get('location'), `${ORIGIN}/`, path);
+  }
 });
 
 test('16. robots.txt does not disallow any public info page', () => {

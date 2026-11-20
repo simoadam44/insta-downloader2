@@ -13,7 +13,7 @@ import {
   Twitter,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
-import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
+import { SUPPORTED_LANGUAGES, TOOL_SLUGS, UI_TRANSLATIONS } from '../data/i18nData';
 
 interface NavbarProps {
   currentLanguage: LanguageCode;
@@ -27,6 +27,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentLanguage,
+  activeTool,
   branding,
   onSelectTool,
   onSelectLanguage,
@@ -79,9 +80,13 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo & Name */}
-        <button
+        <a
           id="btn-brand-logo"
-          onClick={() => onSelectTool('video')}
+          href="/"
+          onClick={(e) => {
+            e.preventDefault();
+            onSelectTool('video');
+          }}
           className="group flex items-center gap-2.5 text-left focus:outline-hidden"
         >
           {logoType === 'image' && customLogoUrl ? (
@@ -130,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             </div>
           ) : null}
-        </button>
+        </a>
 
         {/* Desktop Navigation Links: the site's own downloader pages. A real
             <a> so each page is crawlable and survives a hard refresh. */}
@@ -179,10 +184,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Select Language (i18n)
                 </div>
                 {SUPPORTED_LANGUAGES.map((lang) => (
-                  <button
+                  /* Real hrefs so the eight translated tools are linked, not
+                     only reachable through a click handler. */
+                  <a
                     key={lang.code}
                     id={`btn-lang-${lang.code}`}
-                    onClick={() => {
+                    href={`/${lang.code}/${TOOL_SLUGS[activeTool]}`}
+                    hrefLang={lang.code}
+                    onClick={(e) => {
+                      e.preventDefault();
                       onSelectLanguage(lang.code);
                       setLangMenuOpen(false);
                     }}
@@ -199,7 +209,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <span className="text-[10px] uppercase text-slate-400 font-mono">
                       {lang.code}
                     </span>
-                  </button>
+                  </a>
                 ))}
               </div>
             )}

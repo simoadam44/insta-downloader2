@@ -321,8 +321,10 @@ export const UI_TRANSLATIONS: Record<LanguageCode, {
 export const TOOL_CONTENT: Record<MediaType, Record<LanguageCode, ToolSeoContent>> = {
   video: {
     en: {
-      title: 'Instagram Video Downloader – Save Public Videos as MP4',
-      metaDescription: 'Paste a public Instagram video, Reel or IGTV link and download the available MP4 quality to your phone or computer. Free, no account needed.',
+      // Matches the server-side HOME_META so the title Google reads in the first
+      // response is the same one the client sets after hydration.
+      title: 'Instagram Video Downloader – Free HD MP4, No Watermark',
+      metaDescription: 'Download public Instagram videos, Reels and photos as MP4 in HD — free, no login, no watermark. Paste a link and save it to your phone or computer.',
       h1: 'Instagram Video Downloader',
       subtitle: 'Save a publicly available Instagram video as MP4 — no account and no app install.',
       badge: 'Public posts · MP4 download',

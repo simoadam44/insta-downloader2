@@ -13,6 +13,11 @@ const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
 const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 
+// Date of the last real content change of the homepage and tool pages. A
+// constant on purpose: stamping every URL with "today" on each deploy is what
+// made Google distrust this sitemap's <lastmod>.
+const SITE_CONTENT_UPDATED = '2026-11-20';
+
 // Inlined copy of INFO_PAGE_SEO from src/data/infoPages.ts (this Vercel
 // function deliberately has no local imports). Keep in sync when a page's
 // `updated` value changes.
@@ -64,18 +69,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Pull live lists from Supabase (graceful fallback to empty on any failure).
-  let keywords: { slug: string }[] = [];
   let guides: { slug: string; updatedAt?: string }[] = [];
   try {
     const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
     if (url && key) {
       const sb = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-      const [kw, gd] = await Promise.all([
-        sb.from('keyword_pages').select('slug').eq('enabled', true),
-        sb.from('guide_articles').select('slug,updated_at').eq('enabled', true),
-      ]);
-      if (kw.data) keywords = kw.data.filter((r: any) => r.slug).map((r: any) => ({ slug: String(r.slug) }));
+      const gd = await sb.from('guide_articles').select('slug,updated_at').eq('enabled', true);
       if (gd.data) {
         guides = gd.data
           .filter((r: any) => r.slug)
@@ -88,8 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
   xml += `        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
 
-  const urlNode = (loc: string, lastmod: string, changefreq: string, priority: string, alternates?: { hl: string; href: string }[]) => {
-    let n = `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n`;
+  // Google ignores <changefreq>/<priority>; the old values ("daily", 1.0 on
+  // every URL) were also inflated, so both are gone.
+  const urlNode = (loc: string, lastmod: string, alternates?: { hl: string; href: string }[]) => {
+    let n = `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n`;
     if (alternates) {
       for (const a of alternates) n += `    <xhtml:link rel="alternate" hreflang="${a.hl}" href="${esc(a.href)}"/>\n`;
     }
@@ -97,45 +99,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return n;
   };
 
-  // Root
+  // The homepage is the English default: its x-default is `/`, not
+  // /en/video-downloader (that contradicted the homepage's own canonical).
   xml += urlNode(
     `${origin}/`,
-    today,
-    'daily',
-    '1.0',
-    [...LANGS.map((l) => ({ hl: l, href: `${origin}/${l}/video-downloader` })), { hl: 'x-default', href: `${origin}/en/video-downloader` }]
+    SITE_CONTENT_UPDATED,
+    [
+      { hl: 'en', href: `${origin}/` },
+      ...LANGS.filter((l) => l !== 'en').map((l) => ({ hl: l, href: `${origin}/${l}/video-downloader` })),
+      { hl: 'x-default', href: `${origin}/` },
+    ]
   );
 
   // Tool pages × languages
   for (const lang of LANGS) {
     for (const slug of TOOL_SLUGS) {
       const pageUrl = `${origin}/${lang}/${slug}`;
-      const priority = slug === 'video-downloader' || slug === 'reels-downloader' ? '0.9' : '0.8';
       xml += urlNode(
         pageUrl,
-        today,
-        'daily',
-        priority,
+        SITE_CONTENT_UPDATED,
         [...LANGS.map((l) => ({ hl: l, href: `${origin}/${l}/${slug}` })), { hl: 'x-default', href: `${origin}/en/${slug}` }]
       );
     }
   }
 
-  // Keyword landing pages
-  for (const k of keywords) {
-    xml += urlNode(`${origin}/${encodeURI(k.slug)}`, today, 'daily', '0.9');
-  }
+  // Keyword landing pages are intentionally not listed: /<slug> now 301s to the
+  // homepage, so they are redirects, not pages.
 
   // Blog hub + guide articles
-  xml += urlNode(`${origin}/blog`, today, 'daily', '0.8');
+  xml += urlNode(`${origin}/blog`, SITE_CONTENT_UPDATED);
   for (const g of guides) {
-    const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
-    xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod, 'weekly', '0.8');
+    const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : SITE_CONTENT_UPDATED;
+    xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod);
   }
 
   // Informational and legal pages
   for (const page of INFO_PAGES) {
-    xml += urlNode(`${origin}${page.path}`, page.updated, 'monthly', '0.6');
+    xml += urlNode(`${origin}${page.path}`, page.updated);
   }
 
   xml += `</urlset>`;

@@ -20,7 +20,7 @@ import {
   Twitter,
 } from 'lucide-react';
 import { LanguageCode, MediaType, SiteBrandingSettings } from '../types';
-import { SUPPORTED_LANGUAGES, UI_TRANSLATIONS } from '../data/i18nData';
+import { SUPPORTED_LANGUAGES, TOOL_SLUGS, UI_TRANSLATIONS } from '../data/i18nData';
 
 interface FooterProps {
   currentLanguage: LanguageCode;
@@ -154,15 +154,19 @@ export const Footer: React.FC<FooterProps> = ({
             <ul className="space-y-2 text-xs">
               {toolsList.map((item) => (
                 <li key={item.type}>
-                  <button
-                    onClick={() => {
+                  {/* A real <a href> per tool: these five Instagram pages had no
+                      inbound link at all, which is why they were never crawled. */}
+                  <a
+                    href={`/${currentLanguage}/${TOOL_SLUGS[item.type]}`}
+                    onClick={(e) => {
+                      e.preventDefault();
                       onSelectTool(item.type);
                       scrollToTop();
                     }}
                     className="hover:text-rose-600 transition-colors text-left rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
                   >
                     Instagram {item.label}
-                  </button>
+                  </a>
                 </li>
               ))}
             </ul>
@@ -217,9 +221,12 @@ export const Footer: React.FC<FooterProps> = ({
             </h2>
             <div className="grid grid-cols-2 gap-1 text-xs">
               {SUPPORTED_LANGUAGES.map((lang) => (
-                <button
+                <a
                   key={lang.code}
-                  onClick={() => {
+                  href={`/${lang.code}/${TOOL_SLUGS[_activeTool]}`}
+                  hrefLang={lang.code}
+                  onClick={(e) => {
+                    e.preventDefault();
                     onSelectLanguage(lang.code);
                     scrollToTop();
                   }}
@@ -231,7 +238,7 @@ export const Footer: React.FC<FooterProps> = ({
                 >
                   <span aria-hidden="true">{lang.flag}</span>
                   <span>{lang.nativeName}</span>
-                </button>
+                </a>
               ))}
             </div>
           </div>

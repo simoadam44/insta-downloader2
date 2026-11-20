@@ -16,8 +16,8 @@ import { LoomError, extractLoom } from './lib/loomExtract';
 import { PinterestError, extractPinterestPin } from './lib/pinterestExtract';
 import { TwitterError, extractTwitterPost } from './lib/twitterExtract';
 
-import { resolvePageHeadMeta } from './functions/_lib/pageMeta';
-import { injectSeoHead, resolveCanonicalOrigin } from './functions/_lib/seoHtml';
+import { resolveRouteOutcome } from './functions/_lib/pageMeta';
+import { injectSeoHead, resolveCanonicalOrigin, notFoundResponse, LANGUAGE_CODES } from './functions/_lib/seoHtml';
 import {
   deleteGuide,
   deleteKeywordPage,
@@ -468,10 +468,11 @@ app.get('/sitemap.xml', async (req: Request, res: Response) => {
     const host = /^igsavego\.com$/i.test(rawHost) ? `www.${rawHost}` : rawHost;
     const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
     const origin = `${proto}://${host}`;
-    const [kw, gd] = await Promise.all([listKeywordPages(true), listGuides(true)]);
+    const gd = await listGuides(true);
+    // Keyword landing pages are deliberately excluded: /<slug> now 301s to the
+    // homepage, so listing them would advertise redirects as content.
     const xml = buildSitemapXml(
       origin,
-      (kw || []).map((k) => ({ slug: k.slug })),
       (gd || []).map((g) => ({ slug: g.slug, updatedAt: g.updatedAt }))
     );
     sitemapCache = { xml, expires: Date.now() + 24 * 60 * 60 * 1000 };
@@ -2372,13 +2373,24 @@ async function startServer() {
       try {
         const html = await loadIndexHtml();
         const requestUrl = new URL(req.originalUrl || '/', `${req.protocol}://${req.get('host') || 'localhost'}`);
-        const meta = await resolvePageHeadMeta(req.path, process.env, resolveCanonicalOrigin(requestUrl));
+        const outcome = await resolveRouteOutcome(req.path, process.env, resolveCanonicalOrigin(requestUrl));
         if (req.path === '/admin' || req.path.startsWith('/admin/')) {
           res.setHeader('X-Robots-Tag', 'noindex, nofollow');
         }
+        if (outcome.status === 'redirect') {
+          return res.redirect(301, `${resolveCanonicalOrigin(requestUrl)}${outcome.to}`);
+        }
+        if (outcome.status === 'not-found') {
+          const first = req.path.replace(/^\/+/, '').split('/')[0].toLowerCase();
+          const lang = (LANGUAGE_CODES as readonly string[]).includes(first) ? first : 'en';
+          const notFound = notFoundResponse(lang);
+          res.status(404);
+          for (const [key, value] of notFound.headers.entries()) res.setHeader(key, value);
+          return res.send(await notFound.text());
+        }
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-        return res.status(200).send(meta ? injectSeoHead(html, meta) : html);
+        return res.status(200).send(outcome.status === 'ok' ? injectSeoHead(html, outcome.meta) : html);
       } catch {
         return res.sendFile(indexPath);
       }

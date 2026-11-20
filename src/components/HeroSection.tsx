@@ -18,7 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { LanguageCode, MediaType, ToolSeoContent } from '../types';
-import { TOOL_CONTENT, UI_TRANSLATIONS } from '../data/i18nData';
+import { TOOL_CONTENT, TOOL_SLUGS, UI_TRANSLATIONS } from '../data/i18nData';
 import { DEMO_URLS } from '../services/extractorService';
 
 interface HeroSectionProps {
@@ -116,11 +116,19 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTool === tab.type;
+              // These five tools used to be tab buttons only. As links they are
+              // crawlable, shareable and work after a hard refresh.
               return (
-                <button
+                <a
                   key={tab.type}
                   id={`tab-btn-${tab.type}`}
-                  onClick={() => onSelectTool(tab.type)}
+                  href={`/${currentLanguage}/${TOOL_SLUGS[tab.type]}`}
+                  hrefLang={currentLanguage}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectTool(tab.type);
+                  }}
                   className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold transition-all duration-150 ${
                     isActive
                       ? 'bg-gradient-to-r from-rose-500 via-pink-600 to-purple-600 text-white shadow-sm shadow-rose-500/30'
@@ -129,7 +137,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 >
                   <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span>{tab.label}</span>
-                </button>
+                </a>
               );
             })}
           </div>

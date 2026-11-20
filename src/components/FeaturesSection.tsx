@@ -11,6 +11,7 @@ import {
   CloudSun,
 } from 'lucide-react';
 import { LanguageCode, MediaType } from '../types';
+import { TOOL_SLUGS } from '../data/i18nData';
 
 interface FeaturesSectionProps {
   currentLanguage: LanguageCode;
@@ -18,7 +19,7 @@ interface FeaturesSectionProps {
 }
 
 export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
-  currentLanguage: _currentLanguage,
+  currentLanguage,
   onSelectTool,
 }) => {
   // Copy is limited to behaviour that can be checked in the extractor:
@@ -111,10 +112,14 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
           {features.map((feat) => {
             const Icon = feat.icon;
             return (
-              <button
+              /* A link, not a button: the card's destination is a real URL. */
+              <a
                 key={feat.title}
-                type="button"
-                onClick={() => onSelectTool(feat.tool)}
+                href={`/${currentLanguage}/${TOOL_SLUGS[feat.tool]}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  onSelectTool(feat.tool);
+                }}
                 className="group relative flex w-full flex-col justify-between rounded-3xl border border-slate-200/80 bg-white p-7 text-left shadow-xs hover:shadow-xl hover:shadow-slate-200/60 hover:border-slate-300 transition-all duration-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
               >
                 <div>
@@ -133,7 +138,7 @@ export const FeaturesSection: React.FC<FeaturesSectionProps> = ({
                   <span>{feat.cta}</span>
                   <span className="transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
                 </div>
-              </button>
+              </a>
             );
           })}
         </div>

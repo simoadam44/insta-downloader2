@@ -13,6 +13,11 @@ const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
 const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 
+// Date of the last real content change of the tool pages and the homepage.
+// It is a constant on purpose: stamping every URL with "today" on each build
+// is what made Google distrust this sitemap's <lastmod> entirely.
+export const SITE_CONTENT_UPDATED = '2026-11-20';
+
 export function resolveSeoOrigin(hostname: string): string {
   const raw = (hostname || '').toLowerCase();
   // Primary canonical host is www: the apex 301s to it, so a sitemap must
@@ -31,8 +36,6 @@ function esc(s: string): string {
 }
 
 export async function buildSitemapResponse(origin: string, env: Record<string, string | undefined>): Promise<Response> {
-  const today = new Date().toISOString().split('T')[0];
-
   if (cached && Date.now() < cached.expires && cached.origin === origin) {
     return new Response(cached.xml, {
       status: 200,
@@ -45,16 +48,11 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
     });
   }
 
-  let keywords: { slug: string }[] = [];
   let guides: { slug: string; updatedAt?: string }[] = [];
   try {
     const cfg = getSbConfig(env);
     if (cfg) {
-      const [kw, gd] = await Promise.all([
-        sbList(cfg, 'keyword_pages', { select: 'slug', eq: { enabled: true } }),
-        sbList(cfg, 'guide_articles', { select: 'slug,updated_at', eq: { enabled: true } }),
-      ]);
-      keywords = kw.filter((r: any) => r.slug).map((r: any) => ({ slug: String(r.slug) }));
+      const gd = await sbList(cfg, 'guide_articles', { select: 'slug,updated_at', eq: { enabled: true } });
       guides = gd
         .filter((r: any) => r.slug)
         .map((r: any) => ({ slug: String(r.slug), updatedAt: r.updated_at || undefined }));
@@ -65,8 +63,10 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
   xml += `        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
 
-  const urlNode = (loc: string, lastmod: string, changefreq: string, priority: string, alternates?: { hl: string; href: string }[]) => {
-    let n = `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n`;
+  // Google ignores <changefreq> and <priority>; both were also inflated here
+  // ("daily", priority 1.0 on every URL), so they are gone.
+  const urlNode = (loc: string, lastmod: string, alternates?: { hl: string; href: string }[]) => {
+    let n = `  <url>\n    <loc>${esc(loc)}</loc>\n    <lastmod>${lastmod}</lastmod>\n`;
     if (alternates) {
       for (const a of alternates) n += `    <xhtml:link rel="alternate" hreflang="${a.hl}" href="${esc(a.href)}"/>\n`;
     }
@@ -74,40 +74,39 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
     return n;
   };
 
+  // The homepage is the English default, so its x-default is `/` — pointing it
+  // at /en/video-downloader contradicted the homepage's own canonical.
   xml += urlNode(
     `${origin}/`,
-    today,
-    'daily',
-    '1.0',
-    [...LANGS.map((l) => ({ hl: l, href: `${origin}/${l}/video-downloader` })), { hl: 'x-default', href: `${origin}/en/video-downloader` }]
+    SITE_CONTENT_UPDATED,
+    [
+      { hl: 'en', href: `${origin}/` },
+      ...LANGS.filter((l) => l !== 'en').map((l) => ({ hl: l, href: `${origin}/${l}/video-downloader` })),
+      { hl: 'x-default', href: `${origin}/` },
+    ]
   );
 
   for (const lang of LANGS) {
     for (const slug of TOOL_SLUGS) {
       const pageUrl = `${origin}/${lang}/${slug}`;
-      const priority = slug === 'video-downloader' || slug === 'reels-downloader' ? '0.9' : '0.8';
       xml += urlNode(
         pageUrl,
-        today,
-        'daily',
-        priority,
+        SITE_CONTENT_UPDATED,
         [...LANGS.map((l) => ({ hl: l, href: `${origin}/${l}/${slug}` })), { hl: 'x-default', href: `${origin}/en/${slug}` }]
       );
     }
   }
 
-  for (const k of keywords) {
-    xml += urlNode(`${origin}/${encodeURI(k.slug)}`, today, 'daily', '0.9');
-  }
-
-  xml += urlNode(`${origin}/blog`, today, 'daily', '0.8');
+  // Keyword landing pages are intentionally absent: /<slug> now 301s to the
+  // homepage, so listing them would advertise redirects as content.
+  xml += urlNode(`${origin}/blog`, SITE_CONTENT_UPDATED);
   for (const g of guides) {
-    const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : today;
-    xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod, 'weekly', '0.8');
+    const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : SITE_CONTENT_UPDATED;
+    xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod);
   }
 
   for (const page of INFO_PAGE_SEO) {
-    xml += urlNode(`${origin}${page.path}`, page.updated, 'monthly', '0.6');
+    xml += urlNode(`${origin}${page.path}`, page.updated);
   }
 
   xml += `</urlset>`;

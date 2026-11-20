@@ -123,20 +123,20 @@ test('6b. canonical https www homepage gets exactly one self-canonical', async (
 // 7. Unknown paths preserve their route (final status documented)
 // ---------------------------------------------------------------------------
 
-test('7. unknown paths preserve path/query (final status stays app-controlled)', async () => {
+test('7. consolidated keyword URLs 301 to the homepage, deeper unknown paths 404', async () => {
   const { response } = await redirectFor('https://igsavego.com/this-page-does-not-exist?x=1');
   assert.equal(response.status, 301);
   assert.equal(locationOf(response), 'https://www.igsavego.com/this-page-does-not-exist?x=1');
 
-  // Follow the chain inside the Worker. The SPA currently answers 200 for
-  // unknown routes (pre-existing soft-404, unchanged in this task); the test
-  // asserts the redirect never rewrites the path, not a status we do not serve.
+  // Follow the chain inside the Worker. Single-segment keyword landing pages
+  // (including unknown ones that used to return a 200 soft-404) now answer with
+  // one permanent redirect to the page that serves the same intent.
   const { response: final, nextCalls } = await redirectFor(
     'https://www.igsavego.com/this-page-does-not-exist?x=1',
     { status: 200, body: SHELL, contentType: 'text/html; charset=utf-8' }
   );
-  assert.equal(final.status, 200);
-  assert.equal(final.headers.get('location'), null);
+  assert.equal(final.status, 301);
+  assert.equal(locationOf(final), 'https://www.igsavego.com/');
   assert.equal(nextCalls, 1);
 });
 

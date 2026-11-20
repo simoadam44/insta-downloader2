@@ -34,9 +34,20 @@ export const BlogHub: React.FC<BlogHubProps> = ({ guides, lang, siteName, onOpen
         {guides.map((g) => (
           <article
             key={g.id}
-            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-rose-200 transition-all cursor-pointer"
+            className="group relative rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md hover:border-rose-200 transition-all cursor-pointer"
             onClick={() => onOpenArticle(g.slug)}
           >
+            {/* Stretched link: the whole card is clickable and the article gets a
+                real href instead of being reachable only through JS. */}
+            <a
+              href={`/blog/${g.slug}`}
+              onClick={(e) => {
+                e.preventDefault();
+                onOpenArticle(g.slug);
+              }}
+              className="absolute inset-0 z-0 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400"
+              aria-label={g.h1}
+            />
             <div className="flex items-center gap-2 text-[11px] font-semibold text-rose-600">
               <Tag className="h-3.5 w-3.5" />
               <span className="truncate">{g.keyword}</span>
@@ -51,7 +62,7 @@ export const BlogHub: React.FC<BlogHubProps> = ({ guides, lang, siteName, onOpen
                   e.stopPropagation();
                   onOpenTool(g.tool);
                 }}
-                className="flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+                className="relative z-10 flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-rose-100 hover:text-rose-700 transition-colors"
               >
                 <Download className="h-3 w-3" />
                 <span>{isArabic ? 'جرّب الأداة' : 'Try the tool'}</span>
@@ -101,9 +112,16 @@ export const ArticlePage: React.FC<ArticlePageProps> = ({
     <article className="mx-auto max-w-3xl px-4 sm:px-6 py-10 sm:py-14" dir={isArabic ? 'rtl' : 'ltr'}>
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500" aria-label="Breadcrumb">
-        <button onClick={onBackToBlog} className="hover:text-rose-600 transition-colors">
+        <a
+          href="/blog"
+          onClick={(e) => {
+            e.preventDefault();
+            onBackToBlog();
+          }}
+          className="hover:text-rose-600 transition-colors"
+        >
           {isArabic ? 'المدونة' : 'Blog'}
-        </button>
+        </a>
         <ChevronRight className={`h-3 w-3 ${isArabic ? 'rotate-180' : ''}`} />
         <span className="text-slate-800 truncate max-w-[220px] sm:max-w-none">{guide.h1}</span>
       </nav>
@@ -183,12 +201,16 @@ export const ArticlePage: React.FC<ArticlePageProps> = ({
           <ul className="mt-3 space-y-2">
             {related.map((r) => (
               <li key={r.id}>
-                <button
-                  onClick={() => onOpenArticle(r.slug)}
+                <a
+                  href={`/blog/${r.slug}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onOpenArticle(r.slug);
+                  }}
                   className="text-start text-xs sm:text-sm font-semibold text-rose-700 hover:underline cursor-pointer"
                 >
                   {r.h1}
-                </button>
+                </a>
               </li>
             ))}
           </ul>
