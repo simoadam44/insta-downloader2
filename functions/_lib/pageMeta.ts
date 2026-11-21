@@ -9,7 +9,8 @@
 // (fail-open, never fail-closed).
 import { TOOL_CONTENT } from '../../src/data/i18nData';
 import { INFO_PAGES } from '../../src/data/infoPages';
-import type { MediaType } from '../../src/types';
+import { DEFAULT_GUIDES } from '../../src/data/guides';
+import type { GuideArticle, MediaType } from '../../src/types';
 import { getSbConfig, sbList } from './supabase';
 import {
   LANGUAGE_CODES,
@@ -34,10 +35,14 @@ const SLUG_TO_MEDIA_TYPE: Record<ToolSlug, MediaType> = {
 // Evidence: the live rendered homepage metadata (same strings the client sets
 // from the production seo_overrides). Used only as a fallback.
 const HOME_META = {
-  title: 'Instagram Video Downloader – Free HD MP4, No Watermark',
+  title: 'Instagram Video Downloader (1080p Full HD) – Fast & Free MP4 [No Login]',
   description:
-    'Download public Instagram videos, Reels and photos as MP4 in HD — free, no login, no watermark. Paste a link and save it to your phone or computer.',
+    'Download Instagram videos & Reels in 1080p Full HD — [Free] [No Login] [No Watermark] [Fast MP4]. Paste a link and save it to your phone or PC in one tap.',
 };
+
+// Static guides ship with the build and must be resolvable even when Supabase
+// is empty or unreachable; the database can only add to them.
+const GUIDE_PUBLISHED_DATE = '2026-11-21';
 
 // Mirrors updateBlogHubSeo()'s English output (it intentionally uses the
 // default brand name, not branding.siteName).
@@ -76,6 +81,77 @@ const escapeHtml = (value: string): string =>
 
 const para = (text: string): string => `<p style="margin:0 0 1rem">${escapeHtml(text)}</p>`;
 
+// ---------------------------------------------------------------------------
+// Structured data (JSON-LD) emitted in the FIRST HTML response.
+//
+// FAQPage is built from the same Q&A the page renders, which is what Google
+// requires for FAQ rich results. Ratings are emitted ONLY when they are real:
+// SITE_RATING stays null until verifiable user votes exist. Inventing a 4.9/5
+// AggregateRating is exactly the "spammy structured markup" pattern that draws
+// manual actions — especially right after a spam update.
+// ---------------------------------------------------------------------------
+const SITE_RATING: { ratingValue: number; reviewCount: number } | null = null;
+
+interface PageJsonLdInput {
+  url: string;
+  name: string;
+  description: string;
+  lang: string;
+  siteName: string;
+  origin: string;
+  faqs?: { question: string; answer: string }[];
+}
+
+function buildPageJsonLd(input: PageJsonLdInput): Record<string, unknown>[] {
+  const app: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    '@id': `${input.url}#app`,
+    name: input.name,
+    url: input.url,
+    applicationCategory: 'MultimediaApplication',
+    operatingSystem: 'Android, iOS, Windows, macOS, Linux',
+    inLanguage: input.lang,
+    description: input.description,
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+    },
+  };
+  if (SITE_RATING) {
+    app.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: SITE_RATING.ratingValue,
+      reviewCount: SITE_RATING.reviewCount,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
+
+  const nodes: Record<string, unknown>[] = [app];
+  if (input.faqs && input.faqs.length > 0) {
+    nodes.push({
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      '@id': `${input.url}#faq`,
+      inLanguage: input.lang,
+      mainEntity: input.faqs.slice(0, 8).map((faq) => ({
+        '@type': 'Question',
+        name: faq.question,
+        acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+      })),
+    });
+  }
+  return nodes;
+}
+
+function staticGuide(slug: string): GuideArticle | null {
+  const needle = slug.toLowerCase();
+  return DEFAULT_GUIDES.find((g) => g.enabled && g.slug.toLowerCase() === needle) || null;
+}
+
 /**
  * Real, visible page copy for the first HTML response.
  *
@@ -103,6 +179,31 @@ function linksBlock(lang: string): string {
 }
 
 function buildCrawlHtml(route: RouteInfo): string {
+  if (route.kind === 'blog-article') {
+    const guide = staticGuide(route.slug);
+    if (!guide) return '';
+    const parts: string[] = [
+      `<h1 style="font-size:1.9rem;line-height:1.25;margin:0 0 1rem;font-weight:800">${escapeHtml(guide.h1)}</h1>`,
+      para(guide.excerpt),
+    ];
+    for (const section of guide.sections.slice(0, 3)) {
+      parts.push(
+        `<h2 style="font-size:1.25rem;line-height:1.25;margin:1.5rem 0 .75rem;font-weight:800">${escapeHtml(section.heading)}</h2>`
+      );
+      parts.push(para(section.body));
+    }
+    if (guide.faqs.length > 0) {
+      parts.push(
+        `<h2 style="font-size:1.25rem;line-height:1.25;margin:1.5rem 0 .75rem;font-weight:800">${guide.lang === 'ar' ? 'أسئلة شائعة' : 'Frequently asked questions'}</h2>`
+      );
+      for (const faq of guide.faqs.slice(0, 3)) {
+        parts.push(`<p style="margin:0 0 .25rem"><strong>${escapeHtml(faq.question)}</strong></p>`);
+        parts.push(para(faq.answer));
+      }
+    }
+    return parts.join('') + linksBlock(guide.lang === 'ar' ? 'ar' : 'en');
+  }
+
   const heading = (level: 1 | 2, text: string) =>
     `<h${level} style="font-size:${level === 1 ? '1.9rem' : '1.25rem'};line-height:1.25;margin:0 0 1rem;font-weight:800">${escapeHtml(text)}</h${level}>`;
 
@@ -329,33 +430,51 @@ export async function resolvePageHeadMeta(
 
   if (route.kind === 'home') {
     const homeOverride = data.overrides['video_en'];
+    const title = withBrand(homeOverride?.title || HOME_META.title);
+    const description = withBrand(homeOverride?.metaDescription || HOME_META.description);
     return {
       canonicalUrl: `${origin}/`,
-      title: withBrand(homeOverride?.title || HOME_META.title),
-      description: withBrand(homeOverride?.metaDescription || HOME_META.description),
+      title,
+      description,
       ogType: 'website',
       lang: 'en',
       ...extras(),
+      jsonLd: buildPageJsonLd({
+        url: `${origin}/`,
+        name: `${data.siteName} Instagram Video Downloader`,
+        description,
+        lang: 'en',
+        siteName: data.siteName,
+        origin,
+        faqs: TOOL_CONTENT.video.en.faqs,
+      }),
     };
   }
 
-  if (route.kind === 'lang') {
+  if (route.kind === 'lang' || route.kind === 'tool' || route.kind === 'lang-tool') {
+    const mediaType: MediaType =
+      route.kind === 'lang' ? 'video' : SLUG_TO_MEDIA_TYPE[route.toolSlug];
+    const lang = route.lang;
+    const meta = toolMeta(mediaType, lang);
+    const content = TOOL_CONTENT[mediaType][lang] || TOOL_CONTENT[mediaType].en;
+    const title = meta.title || content.title;
+    const description = meta.description || content.metaDescription;
     return {
       canonicalUrl,
-      ...toolMeta('video', route.lang),
+      ...(title ? { title } : {}),
+      ...(description ? { description } : {}),
       ogType: 'website',
-      lang: route.lang,
+      lang,
       ...extras(),
-    };
-  }
-
-  if (route.kind === 'tool' || route.kind === 'lang-tool') {
-    return {
-      canonicalUrl,
-      ...toolMeta(SLUG_TO_MEDIA_TYPE[route.toolSlug], route.lang),
-      ogType: 'website',
-      lang: route.lang,
-      ...extras(),
+      jsonLd: buildPageJsonLd({
+        url: canonicalUrl,
+        name: title,
+        description,
+        lang,
+        siteName: data.siteName,
+        origin,
+        faqs: content.faqs,
+      }),
     };
   }
 
@@ -385,7 +504,51 @@ export async function resolvePageHeadMeta(
 
   if (route.kind === 'blog-article') {
     const guide = data.guides.get(route.slug.toLowerCase());
-    if (!guide) return null;
+    if (!guide) {
+      // Static guide: metadata, prerendered body and Article/FAQ JSON-LD all
+      // come from the bundled copy, so a new article is crawlable on deploy
+      // without waiting for a Supabase row.
+      const local = staticGuide(route.slug);
+      if (!local) return null;
+      const date = local.updatedAt || GUIDE_PUBLISHED_DATE;
+      const faqNode = buildPageJsonLd({
+        url: canonicalUrl,
+        name: local.title,
+        description: local.metaDescription,
+        lang: local.lang,
+        siteName: data.siteName,
+        origin,
+        faqs: local.faqs,
+      })[1];
+      return {
+        canonicalUrl,
+        title: local.title,
+        description: local.metaDescription,
+        ogType: 'article',
+        lang: local.lang,
+        alternates: [
+          { hreflang: local.lang, href: canonicalUrl },
+          { hreflang: 'x-default', href: canonicalUrl },
+        ],
+        crawlHtml: buildCrawlHtml(route),
+        jsonLd: [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'Article',
+            '@id': `${canonicalUrl}#article`,
+            headline: local.h1,
+            description: local.metaDescription,
+            url: canonicalUrl,
+            inLanguage: local.lang,
+            datePublished: date,
+            dateModified: date,
+            author: { '@type': 'Organization', name: data.siteName, url: origin },
+            publisher: { '@type': 'Organization', name: data.siteName, url: origin },
+          },
+          ...(faqNode ? [faqNode] : []),
+        ],
+      };
+    }
     return {
       canonicalUrl,
       ...(guide.title ? { title: guide.title } : {}),
@@ -406,6 +569,22 @@ export async function resolvePageHeadMeta(
     ogType: 'website',
     lang: keyword.lang,
   };
+}
+
+// Legacy Arabic keyword slugs -> the localized tool page that serves the same
+// intent. Ordered: the more specific media word wins before the generic ones.
+const AR_LEGACY_TOOL_RULES: { test: RegExp; tool: ToolSlug }[] = [
+  { test: /ريل|reel/i, tool: 'reels-downloader' },
+  { test: /ستوري|ستور|story|قصص/i, tool: 'story-saver' },
+  { test: /هايلايت|highlight/i, tool: 'highlights-downloader' },
+  { test: /صور|صورة|photo/i, tool: 'photo-downloader' },
+  { test: /فيديو|فديو|مقطع|video/i, tool: 'video-downloader' },
+];
+
+function legacyKeywordTarget(slug: string): string {
+  if (!/[\u0600-\u06FF]/.test(slug)) return '/';
+  const rule = AR_LEGACY_TOOL_RULES.find((r) => r.test.test(slug));
+  return `/ar/${rule ? rule.tool : 'video-downloader'}`;
 }
 
 export type RouteOutcome =
@@ -436,12 +615,15 @@ export async function resolveRouteOutcome(
   if (route.kind === 'admin') return { status: 'passthrough' };
   if (route.kind === 'unknown') return { status: 'not-found' };
 
-  // Single-segment keyword landing pages are consolidated onto the homepage.
-  // They rendered the same tool with a different H1 for ~64 slugs (English,
-  // Spanish, Arabic…), which is the scaled-content/doorway pattern Google's
-  // September 2026 spam update targets; keeping them live kept the site in it.
-  // A 301 preserves every inbound link and passes its signal to the real page.
-  if (route.kind === 'keyword-candidate') return { status: 'redirect', to: '/' };
+  // Single-segment keyword landing pages are consolidated with ONE permanent
+  // hop. They rendered the same tool with a different H1 for ~64 slugs
+  // (English, Spanish, Arabic…), which is the scaled-content/doorway pattern
+  // Google's September 2026 spam update targets. Arabic slugs now land on the
+  // matching /ar/<tool> page instead of all collapsing onto the English
+  // homepage, so their inbound links reinforce the right canonical.
+  if (route.kind === 'keyword-candidate') {
+    return { status: 'redirect', to: legacyKeywordTarget(route.slug) };
+  }
 
   const meta = await resolvePageHeadMeta(pathname, env, origin);
   if (meta) return { status: 'ok', meta };

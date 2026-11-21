@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Video,
   Image as ImageIcon,
@@ -42,6 +42,20 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   const [urlInput, setUrlInput] = useState('');
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
+
+  // An article's embedded download box hands its link over here, so the
+  // download starts immediately instead of asking the reader to paste again.
+  useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem('igsg_pending_url');
+      if (!pending) return;
+      sessionStorage.removeItem('igsg_pending_url');
+      setUrlInput(pending);
+      onExtract(pending);
+    } catch {}
+    // Mount-only: the value is a one-shot handoff.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const t = UI_TRANSLATIONS[currentLanguage] || UI_TRANSLATIONS.en;
   const baseContent = TOOL_CONTENT[activeTool][currentLanguage] || TOOL_CONTENT[activeTool]['en'];

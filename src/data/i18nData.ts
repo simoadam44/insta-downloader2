@@ -323,8 +323,10 @@ export const TOOL_CONTENT: Record<MediaType, Record<LanguageCode, ToolSeoContent
     en: {
       // Matches the server-side HOME_META so the title Google reads in the first
       // response is the same one the client sets after hydration.
-      title: 'Instagram Video Downloader – Free HD MP4, No Watermark',
-      metaDescription: 'Download public Instagram videos, Reels and photos as MP4 in HD — free, no login, no watermark. Paste a link and save it to your phone or computer.',
+      // CTR shape: primary keyword + (quality) + value words in [brackets],
+      // which survive SERP truncation on mobile because they sit early.
+      title: 'Instagram Video Downloader (1080p Full HD) – Fast & Free MP4 [No Login]',
+      metaDescription: 'Download Instagram videos & Reels in 1080p Full HD — [Free] [No Login] [No Watermark] [Fast MP4]. Paste a link and save it to your phone or PC in one tap.',
       h1: 'Instagram Video Downloader',
       subtitle: 'Save a publicly available Instagram video as MP4 — no account and no app install.',
       badge: 'Public posts · MP4 download',
@@ -393,8 +395,8 @@ export const TOOL_CONTENT: Record<MediaType, Record<LanguageCode, ToolSeoContent
       ],
     },
     ar: {
-      title: 'تحميل فيديو من انستقرام - تنزيل مقاطع فيديو انستقرام بجودة Full HD 1080p',
-      metaDescription: 'أفضل أداة مجانية لتنزيل مقاطع فيديو انستقرام بجودة عالية 1080p MP4 بدون علامة مائية وبدون تسجيل دخول.',
+      title: 'تحميل فيديو من انستقرام بجودة 1080p الأصلية - مجاني وبدون علامة مائية (بدون برامج)',
+      metaDescription: 'حمّل فيديوهات وريلز انستقرام بجودة 1080p الأصلية — [مجاني] [بدون تسجيل دخول] [بدون علامة مائية] [سريع بضغطة زر]. الصق الرابط واحفظ الفيديو على جوالك أو الكمبيوتر.',
       h1: 'تحميل فيديو من انستقرام',
       subtitle: 'حمل فيديوهات انستقرام بصيغة MP4 وبأعلى دقة مجاناً وبشكل مجهول بالكامل.',
       badge: 'تحميل فائق السرعة وبدون علامة مائية 1080p',

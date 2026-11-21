@@ -2,6 +2,7 @@
 // inlined copy because Vercel cannot bundle local imports in this project).
 
 import { INFO_PAGE_SEO } from '../src/data/infoPages';
+import { DEFAULT_GUIDES } from '../src/data/guides';
 
 const TOOL_SLUGS = ['video-downloader', 'photo-downloader', 'reels-downloader', 'story-saver', 'highlights-downloader'];
 const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
@@ -9,7 +10,7 @@ const LANGS = ['en', 'es', 'fr', 'ar', 'pt', 'de', 'id', 'tr'];
 // Date of the last real content change of the homepage and the tool pages.
 // A constant on purpose: the old builder stamped every URL with "today" on
 // each request, which is why Google stopped trusting this file's <lastmod>.
-export const SITE_CONTENT_UPDATED = '2026-11-20';
+export const SITE_CONTENT_UPDATED = '2026-11-21';
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -19,6 +20,17 @@ export function buildSitemapXml(
   origin: string,
   guides: { slug: string; updatedAt?: string }[]
 ): string {
+  // Static guides are bundled with the build: list them even when Supabase is
+  // empty, otherwise a freshly deployed article waits for a database row before
+  // it can be discovered. DB rows win on conflict (they may be newer).
+  const allGuides = new Map<string, { slug: string; updatedAt?: string }>();
+  for (const g of DEFAULT_GUIDES) {
+    if (g.enabled && g.slug) allGuides.set(g.slug, { slug: g.slug, updatedAt: g.updatedAt });
+  }
+  for (const g of guides) {
+    if (g.slug) allGuides.set(g.slug, g);
+  }
+
   // <changefreq> and <priority> are ignored by Google and were inflated here
   // before ("daily", 1.0 everywhere), so neither is emitted any more.
   const urlNode = (loc: string, lastmod: string, alternates?: { hl: string; href: string }[]) => {
@@ -59,8 +71,7 @@ export function buildSitemapXml(
 
   // Keyword landing pages are not listed: /<slug> now 301s to the homepage.
   xml += urlNode(`${origin}/blog`, SITE_CONTENT_UPDATED);
-  for (const g of guides) {
-    if (!g.slug) continue;
+  for (const g of allGuides.values()) {
     const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : SITE_CONTENT_UPDATED;
     xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod);
   }

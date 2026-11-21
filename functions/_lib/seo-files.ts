@@ -4,6 +4,7 @@
 // middleware demonstrably runs on every request (staging noindex header).
 import { getSbConfig, sbList } from './supabase';
 import { INFO_PAGE_SEO } from '../../src/data/infoPages';
+import { DEFAULT_GUIDES } from '../../src/data/guides';
 
 // ---- sitemap ----
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -16,7 +17,7 @@ const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 // Date of the last real content change of the tool pages and the homepage.
 // It is a constant on purpose: stamping every URL with "today" on each build
 // is what made Google distrust this sitemap's <lastmod> entirely.
-export const SITE_CONTENT_UPDATED = '2026-11-20';
+export const SITE_CONTENT_UPDATED = '2026-11-21';
 
 export function resolveSeoOrigin(hostname: string): string {
   const raw = (hostname || '').toLowerCase();
@@ -59,6 +60,15 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
     }
   } catch {}
 
+  // Bundled guides are always listed; DB rows override them when present.
+  const allGuides = new Map<string, { slug: string; updatedAt?: string }>();
+  for (const g of DEFAULT_GUIDES) {
+    if (g.enabled && g.slug) allGuides.set(g.slug, { slug: g.slug, updatedAt: g.updatedAt });
+  }
+  for (const g of guides) {
+    if (g.slug) allGuides.set(g.slug, g);
+  }
+
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
   xml += `        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n`;
@@ -100,7 +110,7 @@ export async function buildSitemapResponse(origin: string, env: Record<string, s
   // Keyword landing pages are intentionally absent: /<slug> now 301s to the
   // homepage, so listing them would advertise redirects as content.
   xml += urlNode(`${origin}/blog`, SITE_CONTENT_UPDATED);
-  for (const g of guides) {
+  for (const g of allGuides.values()) {
     const lastmod = g.updatedAt ? g.updatedAt.split('T')[0] : SITE_CONTENT_UPDATED;
     xml += urlNode(`${origin}/blog/${encodeURI(g.slug)}`, lastmod);
   }

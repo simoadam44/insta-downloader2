@@ -53,6 +53,12 @@ export interface PageHeadMeta {
    * page. React replaces it on mount, so it is never shown twice.
    */
   crawlHtml?: string;
+  /**
+   * JSON-LD nodes (FAQPage, SoftwareApplication, Article…) injected into the
+   * first HTML response. Rich results must exist before hydration: relying on
+   * the client engine meant crawlers that skip JS saw no structured data.
+   */
+  jsonLd?: Record<string, unknown>[];
 }
 
 export type RouteInfo =
@@ -319,6 +325,16 @@ export function injectSeoHead(html: string, meta: PageHeadMeta): string {
       .map((a) => `  <link rel="alternate" hreflang="${escapeAttr(a.hreflang)}" href="${escapeAttr(a.href)}" />`)
       .join('\n');
     out = out.replace(/<\/head>/i, `${tags}\n  </head>`);
+  }
+
+  // Structured data is replaced, never stacked: the shell already ships a
+  // homepage SoftwareApplication + FAQPage, and the React engine adds its own.
+  if (meta.jsonLd && meta.jsonLd.length > 0) {
+    out = out.replace(/^[ \t]*<script[^>]*application\/ld\+json[^>]*>[\s\S]*?<\/script>[ \t]*\r?\n?/gim, '');
+    const nodes = meta.jsonLd
+      .map((node) => `  <script type="application/ld+json">${JSON.stringify(node).replace(/</g, '\\u003c')}</script>`)
+      .join('\n');
+    out = out.replace(/<\/head>/i, `${nodes}\n  </head>`);
   }
 
   if (meta.crawlHtml) {

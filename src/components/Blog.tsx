@@ -84,6 +84,71 @@ export const BlogHub: React.FC<BlogHubProps> = ({ guides, lang, siteName, onOpen
   );
 };
 
+interface InlineToolBoxProps {
+  lang: LanguageCode;
+  tool: MediaType;
+  keyword: string;
+  onOpenTool: (tool: MediaType) => void;
+}
+
+/**
+ * The downloader embedded in the article itself (top and middle).
+ *
+ * A reader arrives from a search for a specific problem; without this they
+ * would read, leave, and open the site again from the homepage. Submitting a
+ * link carries it into the tool page via sessionStorage, so the download starts
+ * in one step and the visit stays on the site.
+ */
+const InlineToolBox: React.FC<InlineToolBoxProps> = ({ lang, tool, keyword, onOpenTool }) => {
+  const isArabic = lang === 'ar';
+  const [value, setValue] = React.useState('');
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = value.trim();
+      if (url) sessionStorage.setItem('igsg_pending_url', url);
+    } catch {}
+    onOpenTool(tool);
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mt-5 rounded-2xl border border-rose-200/80 bg-gradient-to-br from-rose-50 via-white to-purple-50 p-4 sm:p-5"
+      dir={isArabic ? 'rtl' : 'ltr'}
+    >
+      <p className="text-xs sm:text-sm font-extrabold text-slate-900">
+        {isArabic ? `جرّب ${keyword} الآن` : `Try the ${keyword} tool now`}
+      </p>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <label htmlFor={`inline-tool-input-${tool}`} className="sr-only">
+          {isArabic ? 'رابط انستقرام' : 'Instagram link'}
+        </label>
+        <input
+          id={`inline-tool-input-${tool}`}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          inputMode="url"
+          dir="ltr"
+          placeholder={isArabic ? 'الصق رابط انستقرام هنا…' : 'Paste an Instagram link here…'}
+          className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-rose-400 focus:ring-2 focus:ring-rose-200"
+        />
+        <button
+          type="submit"
+          className="flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-rose-500/25 hover:brightness-105 transition-all"
+        >
+          <Download className="h-4 w-4" />
+          <span>{isArabic ? 'تحميل' : 'Download'}</span>
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] font-semibold text-slate-500">
+        {isArabic ? 'مجاني · بدون تسجيل دخول · بدون علامة مائية' : 'Free · No login · No watermark'}
+      </p>
+    </form>
+  );
+};
+
 interface ArticlePageProps {
   guide: GuideArticle;
   related: GuideArticle[];
@@ -157,6 +222,8 @@ export const ArticlePage: React.FC<ArticlePageProps> = ({
         </span>
       </a>
 
+      <InlineToolBox lang={guide.lang} tool={guide.tool} keyword={guide.keyword} onOpenTool={onOpenTool} />
+
       {/* Sections */}
       <div className="mt-8 space-y-6">
         {guide.sections.map((s, i) => (
@@ -166,6 +233,9 @@ export const ArticlePage: React.FC<ArticlePageProps> = ({
           </section>
         ))}
       </div>
+
+      {/* Second widget mid-article: the reader is convinced here, not at the top. */}
+      <InlineToolBox lang={guide.lang} tool={guide.tool} keyword={guide.keyword} onOpenTool={onOpenTool} />
 
       {/* FAQs */}
       {guide.faqs.length > 0 && (

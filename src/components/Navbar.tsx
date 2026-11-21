@@ -36,7 +36,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [otherMenuOpen, setOtherMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement>(null);
+  const otherMenuRef = useRef<HTMLDivElement>(null);
 
   const siteName = branding?.siteName || 'IGSaveGo';
   const siteTagline = branding?.siteTagline || 'Fast & HD Media Saver';
@@ -50,6 +52,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     function handleClickOutside(event: MouseEvent) {
       if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
         setLangMenuOpen(false);
+      }
+      if (otherMenuRef.current && !otherMenuRef.current.contains(event.target as Node)) {
+        setOtherMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -137,30 +142,70 @@ export const Navbar: React.FC<NavbarProps> = ({
           ) : null}
         </a>
 
-        {/* Desktop Navigation Links: the site's own downloader pages. A real
-            <a> so each page is crawlable and survives a hard refresh. */}
-        <nav
-          aria-label="Downloaders for other platforms"
-          className="hidden items-center gap-0.5 rounded-xl border border-slate-200/70 bg-slate-50/70 p-1 md:flex"
-        >
-          {platformLinks.map((link) => {
-            const Icon = link.icon;
-            return (
-              <a
-                key={link.id}
-                href={link.href}
-                id={link.id}
-                aria-label={`${link.label} downloader`}
-                title={`${link.label} downloader`}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-semibold whitespace-nowrap text-slate-600 transition-colors duration-150 hover:bg-white hover:text-slate-900 hover:shadow-2xs"
+        {/* Desktop Navigation: Instagram stays the hero and the brand entity;
+            every other platform lives behind one "Other tools" menu in its own
+            /<platform>-downloader path, so each tool can rank for its own
+            queries without splitting the homepage's Instagram signal. All real
+            <a> elements, so every page stays crawlable. */}
+        <nav aria-label="Tools" className="hidden items-center gap-1 md:flex">
+          <a
+            id="nav-link-instagram"
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              onSelectTool('video');
+            }}
+            className="flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-[13px] font-bold whitespace-nowrap text-white transition-colors hover:bg-slate-800"
+          >
+            <Sparkles className="h-4 w-4 text-rose-400" aria-hidden="true" />
+            <span>Instagram</span>
+          </a>
+
+          <div className="relative" ref={otherMenuRef}>
+            <button
+              type="button"
+              id="btn-other-tools"
+              aria-expanded={otherMenuOpen}
+              aria-haspopup="menu"
+              onClick={() => setOtherMenuOpen((open) => !open)}
+              className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+            >
+              <span>Other tools</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 text-slate-400 transition-transform ${otherMenuOpen ? 'rotate-180' : ''}`}
+                aria-hidden="true"
+              />
+            </button>
+
+            {otherMenuOpen && (
+              <div
+                role="menu"
+                aria-labelledby="btn-other-tools"
+                className="absolute left-0 z-50 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-150"
               >
-                <Icon className={`h-4 w-4 ${link.iconClass}`} aria-hidden="true" />
-                {/* Labels appear once there is room; below lg the icons keep the
-                    row on one line without pushing the controls off-screen. */}
-                <span className="hidden lg:inline">{link.label}</span>
-              </a>
-            );
-          })}
+                <p className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  Downloaders
+                </p>
+                {platformLinks.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.href}
+                      id={link.id}
+                      role="menuitem"
+                      aria-label={`${link.label} downloader`}
+                      title={`${link.label} downloader`}
+                      className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <Icon className={`h-4 w-4 ${link.iconClass}`} aria-hidden="true" />
+                      <span>{link.label}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Right Tools: PWA, Language, Admin */}
@@ -241,6 +286,18 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
         <div className="border-t border-slate-200 bg-white px-4 py-3 md:hidden">
+          <a
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
+              onSelectTool('video');
+              setMobileMenuOpen(false);
+            }}
+            className="mb-2 flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2.5 text-xs font-bold text-white"
+          >
+            <Sparkles className="h-4 w-4 text-rose-400" aria-hidden="true" />
+            <span>Instagram downloader</span>
+          </a>
           <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
             Other downloaders
           </p>

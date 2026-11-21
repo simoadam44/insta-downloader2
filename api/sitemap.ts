@@ -16,7 +16,33 @@ const FALLBACK_ORIGIN = 'https://www.igsavego.com';
 // Date of the last real content change of the homepage and tool pages. A
 // constant on purpose: stamping every URL with "today" on each deploy is what
 // made Google distrust this sitemap's <lastmod>.
-const SITE_CONTENT_UPDATED = '2026-11-20';
+const SITE_CONTENT_UPDATED = '2026-11-21';
+
+// Inlined list of the bundled blog guides - this function has no local imports.
+// Keep in sync with DEFAULT_GUIDES in src/data/guides.ts, otherwise a new
+// article is served but never listed here.
+const DEFAULT_GUIDE_SLUGS = [
+  'تحميل-ريلز-انستقرام-للايفون-بدون-برامج',
+  'حفظ-ستوري-انستقرام-بدون-ما-يدري',
+  'تحميل-فيديو-انستا-للاندرويد-بجودة-عالية',
+  'download-instagram-reels-on-iphone-without-app',
+  'save-instagram-story-anonymously',
+  'download-instagram-photos-to-android-gallery',
+  'تحميل-ستوري-انستقرام-حساب-خاص',
+  'تنزيل-صوت-الريلز-انستقرام-mp3',
+  'تعذر-تحميل-فيديو-انستقرام-على-الايفون',
+  'حفظ-هايلايت-انستقرام-مع-الغلاف',
+  'تحميل-صور-انستقرام-كاروسيل-دفعة-واحدة',
+  'تحميل-فيديو-انستقرام-بدون-علامة-مائية-1080p',
+  'تحميل-ريلز-انستقرام-على-الاندرويد-بسرعة',
+  'download-instagram-story-private-account',
+  'instagram-reels-to-mp3-audio-download',
+  'instagram-video-download-not-working-iphone',
+  'save-instagram-highlights-with-cover',
+  'download-instagram-carousel-photos',
+  'instagram-video-downloader-no-watermark-1080p',
+  'download-instagram-video-on-pc-windows',
+];
 
 // Inlined copy of INFO_PAGE_SEO from src/data/infoPages.ts (this Vercel
 // function deliberately has no local imports). Keep in sync when a page's
@@ -83,6 +109,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
   } catch {}
+
+  // Bundled guides first (so a deploy is discoverable before any DB row), then
+  // DB rows override them by slug.
+  const bySlug = new Map<string, { slug: string; updatedAt?: string }>();
+  for (const slug of DEFAULT_GUIDE_SLUGS) bySlug.set(slug, { slug });
+  for (const g of guides) if (g.slug) bySlug.set(g.slug, g);
+  guides = Array.from(bySlug.values());
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n`;
